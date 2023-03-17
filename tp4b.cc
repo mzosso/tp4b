@@ -157,7 +157,7 @@ void tp4b(int V=300)
 	
 	fct_E(E, d, V_d,V, 1);
 	
-	double ini=200;
+	double ini=80;
 	double mu_e=1350/pow(10,-4);
 	double mu_h=450/pow(10,-4);
 	vector<double> temps=tps(ini, n_d, mu_e, mu_h, E);
@@ -233,12 +233,14 @@ void tp4b(int V=300)
 	
 	
 	
+	
 	TGraph *gr_I_e = new TGraph (n_t, t, I_e);
 	gr_I_e ->SetMarkerStyle(20);
 	gr_I_e ->SetMarkerColor(2);
 	gr_I_e ->SetMarkerSize(1.0);
 	gr_I_e ->SetLineWidth(2);
 	gr_I_e ->SetLineColor(2);
+	
 	
 	
 	TGraph *gr_I_h = new TGraph (n_t, t, I_h);
@@ -248,10 +250,15 @@ void tp4b(int V=300)
 	gr_I_h ->SetLineWidth(2);
 	gr_I_h ->SetLineColor(5);
 	
+	auto legend = new TLegend(); //0.2,0.3,0.2,0.3
+	vector<TString> mylgd ={"I_e","I_h"};
+	legend->AddEntry(gr_I_e,mylgd[0], "l");
+	legend->AddEntry(gr_I_h,mylgd[1], "l");
+	
 	mg->Add(gr_I_h);
 	mg->Add(gr_I_e);	
 	mg->Draw("AC");
-	
+	legend->Draw();
 	
 	
 	
