@@ -49,25 +49,31 @@ vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, 
 	vector<int> i_h(n_e);
 	vector<double> v_e(n_e);
 	vector<double> v_h(n_e);
-	vector<double> t_e(n_e);
-	vector<double> t_h(n_e);
+	//vector<double> t_e(n_e);
+	//vector<double> t_h(n_e);
+	vector<vector<double>> t(2, vector<double>(n_e));
 	
 	for(int i(0); i<n_e; ++i)
 	{
-		ini[i]=(double) n_d/n_e*i;
+		ini[i]=(double) n_d/n_e*i+15; //a corregir
 		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
 		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
 		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
 		v_e[i]=mu_e*E[i_e[i]];
 		v_h[i]=mu_h*E[i_h[i]];
-		t_e[i]=dist[i]/v_e[i];
-		t_h[i]=ini[i]/v_h[i];
+		//t_e[i]=dist[i]/v_e[i];
+		//t_h[i]=ini[i]/v_h[i];
+		
+		t[0][i]=dist[i]/v_e[i];
+		t[1][i]=ini[i]/v_h[i];
 	}
-	vector<vector<double>> t(2, vector<double>(n_e));
+	cout<<dist[0];
+	cout<<ini[0];
+	
 	//cout<<"t_e="<<t_e<<endl;
 	//cout<<"t_h="<<t_h<<endl;
-	t[0]=t_e;
-	t[1]=t_h;
+	
+	
 	return t;
 }
 
@@ -112,7 +118,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 
 void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0) 
 {
-	vector<vector<double>> I_nv(n_t,vector<double>(n_e));
+	//vector<vector<double>> I_nv(n_t,vector<double>(n_e));
 	for(int i(0); i<n_t;++i)
 		{
 			//t.push_back(s/n_t*i);
@@ -141,39 +147,41 @@ void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0)
 		
 				for(int i(0); i<n_e;++i)
 				{
-					cout<<"size_num_dt"<<num_dt.size();
+					//cout<<"i"<<i;
 					tps[i]*=1e9;
 					num_dt[i]=round(tps[i]/dt);//nombre de dt
 					//cout<<"num_dt"<<num_dt[i]<<endl;
+					//cout<<"num dt  "<<num_dt[i]<<endl;
 					height_I[i]=(double) 1/tps[i]; // aire du rectangle =1
+					cout<<"height   "<<height_I[i]<<endl;
 					//cout<<"height_I[i]"<<height_I[i]<<endl;
 					
 					for(int j(0); j<num_dt[i]; ++j)
 					{
-						I_nv[i][j]=height_I[i];
-						cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size();		
+						I[j]+=height_I[i];
+						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
 					}
-					for(int g(num_dt[i]); g<n_t;++g)
+					/*for(int g(num_dt[i]); g<n_t;++g)
 					{
-						I_nv[i][g]=0;
-						cout<<"hello";
-					}
+						I[g]=0;
+						//cout<<"hello"<<g<<endl;
+					}*/
 					
 		}	
 		
-			for(int j(0); j<n_t;++j)
+			/*for(int j(0); j<n_t;++j)
 			{
-				cout<<"size I";
+				cout<<"deuxieme j"<<j<<endl;
 				I[j]=0;
 				for(int i(0); i<n_e;++i)
 				{
-					cout<<"dans loop ";
+					cout<<"deuxieme i "<<i<<endl;
 					I[j]+=I_nv[i][j];
-				}
+				}*/
 			}
 		
 	}
-}
+
 
 void tp4b(int V=300)
 {
@@ -197,7 +205,7 @@ void tp4b(int V=300)
 	double mu_e=1350/pow(10,-4);
 	double mu_h=450/pow(10,-4);
 	vector<vector<double>> temps=tps(ini, n_d, mu_e, mu_h, E);
-	cout<<"size temps"<<temps.size()<<endl<<"size temps ligne"<<temps[0].size();
+	//cout<<"size temps"<<temps.size()<<endl<<"size temps ligne"<<temps[0].size();
 	fct_I(I_e, t, dt, temps[0], 1);
 	fct_I(I_h, t, dt, temps[1], 1);
 	
