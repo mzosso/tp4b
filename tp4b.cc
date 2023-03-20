@@ -239,7 +239,7 @@ void tp4b(int V=300)
 	gr_I_e ->SetMarkerColor(2);
 	gr_I_e ->SetMarkerSize(1.0);
 	gr_I_e ->SetLineWidth(2);
-	gr_I_e ->SetLineColor(2);
+	gr_I_e ->SetLineColor(3);
 	
 	
 	
@@ -251,13 +251,13 @@ void tp4b(int V=300)
 	gr_I_h ->SetLineColor(5);
 	
 	auto legend = new TLegend(); //0.2,0.3,0.2,0.3
-	vector<TString> mylgd ={"I_e","I_h"};
+	vector<TString> mylgd ={"I_{e}","I_{h}"};
 	legend->AddEntry(gr_I_e,mylgd[0], "l");
 	legend->AddEntry(gr_I_h,mylgd[1], "l");
 	
 	mg->Add(gr_I_h);
 	mg->Add(gr_I_e);	
-	mg->Draw("AC");
+	mg->Draw("APLC");
 	legend->Draw();
 	
 	
