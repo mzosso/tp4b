@@ -56,15 +56,16 @@ vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, 
 	
 	for(int i(0); i<n_e; ++i)
 	{
-		ini[i]=(double) n_d/n_e*(i+1/2); //a corregir
+		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
 		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
 		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
-		cout<<"hello"<<i<<endl;
-		cout<<"i_e"<<i_e[i]<<endl;
+		//cout<<"hello"<<i<<endl;
+		//cout<<"dist"<<dist[i]<<endl;
+		//cout<<"i_e"<<i_e[i]<<endl;
 		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
 		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
-		cout<<"hola"<<i<<endl;
-		cout<<"i_h"<<i_h[i]<<endl;
+		//cout<<"hola"<<i<<endl;
+		//cout<<"ini"<<ini[i]<<endl;
 		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
 		//v_e[i]=mu_e*E[i_e[i]];
 		//v_h[i]=mu_h*E[i_h[i]];
@@ -79,12 +80,6 @@ vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, 
 	
 	//cout<<"t_e="<<t_e<<endl;
 	//cout<<"t_h="<<t_h<<endl;
-	cout<<"n_e "<<n_e<<endl;
-	cout<<"length ini boucle :  "<<sizeof(ini[n_e])<<endl;
-	cout<<"length E boucle :  "<<sizeof(E)<<endl;
-	
-	cout<<"length t0 boucle :  "<<sizeof(t[0])<<endl;
-	cout<<"length t1 boucle :  "<<sizeof(t[1])<<endl;
 	
 	return t;
 }
@@ -156,22 +151,21 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 		//cout<<"dt"<<dt<<endl;
 		vector<int> num_dt(n_e);
 		vector<double> height_I(n_e);
-		cout<<"size tps "<<sizeof(tps)<<endl;
 		
 				for(int i(0); i<n_e;++i)
 				{
 					//cout<<"i"<<i;
-					tps[i]*=1e9;
+					//tps[i]*=1e9;
 					num_dt[i]=round(tps[i]/dt);//nombre de dt
-					//cout<<"num_dt"<<num_dt[i]<<endl;
-					//cout<<"num dt  "<<num_dt[i]<<endl;
+					
+					cout<<i<<endl<<"temps  "<<tps[i]<<endl;
+					//cout<<"dt  "<<dt<<endl;
 					height_I[i]=(double) 1/tps[i]; // aire du rectangle =1
 					cout<<"height   "<<height_I[i]<<endl;
-					//cout<<"height_I[i]"<<height_I[i]<<endl;
-					
+			
 					for(int j(0); j<num_dt[i]; ++j)
 					{
-						//cout<<"gutenTAg"<<j<<endl;
+						cout<<"gutenTAg"<<j<<endl;
 						I[j]+=height_I[i];
 						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
 					}
