@@ -41,8 +41,9 @@ int n_t=1000; //how many pts for s and I
 double dt= (double) s/n_t;
 int V_d=100; //depletion voltage
 int n_e=10; //nb electrons
+double T=298.16;
 
-vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, float E[n]) //ini c'est où on injecte // drift time for h and e
+vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, float E[n], double T) //ini c'est où on injecte // drift time for h and e
 {
 	vector<double> dist(n_e);
 	vector<int> i_e(n_e);
@@ -55,12 +56,18 @@ vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, 
 	
 	for(int i(0); i<n_e; ++i)
 	{
-		ini[i]=(double) n_d/n_e*i+15; //a corregir
+		ini[i]=(double) n_d/n_e*(i+1/2); //a corregir
 		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
 		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
+		cout<<"hello"<<i<<endl;
+		cout<<"i_e"<<i_e[i]<<endl;
 		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
-		v_e[i]=mu_e*E[i_e[i]];
-		v_h[i]=mu_h*E[i_h[i]];
+		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
+		cout<<"hola"<<i<<endl;
+		cout<<"i_h"<<i_h[i]<<endl;
+		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
+		//v_e[i]=mu_e*E[i_e[i]];
+		//v_h[i]=mu_h*E[i_h[i]];
 		//t_e[i]=dist[i]/v_e[i];
 		//t_h[i]=ini[i]/v_h[i];
 		
@@ -72,7 +79,12 @@ vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, 
 	
 	//cout<<"t_e="<<t_e<<endl;
 	//cout<<"t_h="<<t_h<<endl;
+	cout<<"n_e "<<n_e<<endl;
+	cout<<"length ini boucle :  "<<sizeof(ini[n_e])<<endl;
+	cout<<"length E boucle :  "<<sizeof(E)<<endl;
 	
+	cout<<"length t0 boucle :  "<<sizeof(t[0])<<endl;
+	cout<<"length t1 boucle :  "<<sizeof(t[1])<<endl;
 	
 	return t;
 }
@@ -116,7 +128,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 }
 
 
-void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0) 
+void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0) 
 {
 	//vector<vector<double>> I_nv(n_t,vector<double>(n_e));
 	for(int i(0); i<n_t;++i)
@@ -130,12 +142,12 @@ void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0)
 		TRandom *rand = new TRandom();
 		
 		
-		double r = 0;
+		vector<double> r(n_t);
 		for(int i(0); i<n_t;++i)
 		{
 			//I.push_back(0);
-			r = rand->Gaus(0,1);
-			I[i]=r;
+			r[i] = rand->Gaus(0,1);
+			I[i]=r[i];
 		}
 	}
 	else
@@ -144,6 +156,7 @@ void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0)
 		//cout<<"dt"<<dt<<endl;
 		vector<int> num_dt(n_e);
 		vector<double> height_I(n_e);
+		cout<<"size tps "<<sizeof(tps)<<endl;
 		
 				for(int i(0); i<n_e;++i)
 				{
@@ -158,9 +171,11 @@ void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0)
 					
 					for(int j(0); j<num_dt[i]; ++j)
 					{
+						//cout<<"gutenTAg"<<j<<endl;
 						I[j]+=height_I[i];
 						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
 					}
+				}
 					/*for(int g(num_dt[i]); g<n_t;++g)
 					{
 						I[g]=0;
@@ -178,9 +193,9 @@ void fct_I(float I[n], float t[n],double dt,vector<double> tps, bool cst=0)
 					cout<<"deuxieme i "<<i<<endl;
 					I[j]+=I_nv[i][j];
 				}*/
-			}
+}
 		
-	}
+
 
 
 void tp4b(int V=300)
@@ -195,8 +210,15 @@ void tp4b(int V=300)
 	float t[n_t];
 	float I_e[n_t];
 	float I_h[n_t];
+	float I_tot[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
 	
+	for(int i(0); i<n_t; ++i)
+	{
+		I_h[i]=0;
+		I_e[i]=0;
+		I_tot[i]=0;
+	}
 	
 	
 	fct_E(E, d, V_d,V, 1);
@@ -204,10 +226,15 @@ void tp4b(int V=300)
 	
 	double mu_e=1350/pow(10,-4);
 	double mu_h=450/pow(10,-4);
-	vector<vector<double>> temps=tps(ini, n_d, mu_e, mu_h, E);
+	vector<vector<double>> temps=tps(ini, n_d, mu_e, mu_h, E,T);
 	//cout<<"size temps"<<temps.size()<<endl<<"size temps ligne"<<temps[0].size();
 	fct_I(I_e, t, dt, temps[0], 1);
 	fct_I(I_h, t, dt, temps[1], 1);
+	
+	for(int i(0); i<n_t;++i)
+	{
+		I_tot[i]=I_h[i]+I_e[i];
+	}
 	
 	while (gPad !=0) gPad ->Close();
 	
@@ -255,13 +282,13 @@ void tp4b(int V=300)
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
 	
-	TMultiGraph *mg = new TMultiGraph();
-	mg->SetTitle("Signals");
+	/*TMultiGraph *mg = new TMultiGraph();
+	mg->SetTitle("Signals");*/
 
 	
 	
-	/*TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 1);
-	hpx1->Draw("apl");
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 100);
+	hpx1->Draw();
 	
 	
 	hpx1->GetYaxis()->SetTitle("I");
@@ -274,7 +301,7 @@ void tp4b(int V=300)
 	hpx1->SetTitle("I, ns vs I");
 	hpx1->GetYaxis()->CenterTitle();
 	hpx1->GetXaxis()->SetTitle("ns");
-	hpx1->GetXaxis()->CenterTitle();*/
+	hpx1->GetXaxis()->CenterTitle();
 	
 	
 	
@@ -284,25 +311,39 @@ void tp4b(int V=300)
 	gr_I_e ->SetMarkerColor(2);
 	gr_I_e ->SetMarkerSize(1.0);
 	gr_I_e ->SetLineWidth(2);
-	gr_I_e ->SetLineColor(3);
+	gr_I_e ->SetLineColor(2);
 	
 	
 	
 	TGraph *gr_I_h = new TGraph (n_t, t, I_h);
 	gr_I_h ->SetMarkerStyle(20);
-	gr_I_h ->SetMarkerColor(2);
+	gr_I_h ->SetMarkerColor(3);
 	gr_I_h ->SetMarkerSize(1.0);
 	gr_I_h ->SetLineWidth(2);
-	gr_I_h ->SetLineColor(5);
+	gr_I_h ->SetLineColor(4);
+	
+	
+	TGraph *gr_I_tot = new TGraph (n_t, t, I_tot);
+	gr_I_tot ->SetMarkerStyle(20);
+	gr_I_tot ->SetMarkerColor(1);
+	gr_I_tot ->SetMarkerSize(1.0);
+	gr_I_tot ->SetLineWidth(2);
+	gr_I_tot ->SetLineColor(1);
+	
 	
 	auto legend = new TLegend(); //0.2,0.3,0.2,0.3
-	vector<TString> mylgd ={"I_{e}","I_{h}"};
+	vector<TString> mylgd ={"I_{e}","I_{h}", "I_{tot}"};
 	legend->AddEntry(gr_I_e,mylgd[0], "l");
 	legend->AddEntry(gr_I_h,mylgd[1], "l");
+	legend->AddEntry(gr_I_tot,mylgd[2], "l");
+
 	
-	mg->Add(gr_I_h);
-	mg->Add(gr_I_e);	
-	mg->Draw("APLC");
+	//mg->Add(gr_I_h);
+	//mg->Add(gr_I_e);	
+	//mg->Draw("APLC");
+	gr_I_e->Draw("L");
+	gr_I_h->Draw("L");
+	gr_I_tot->Draw("L");
 	legend->Draw();
 	
 	
