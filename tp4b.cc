@@ -6,33 +6,9 @@
 #include <typeinfo>
 using namespace std;
 
-class Simple
-{
-	protected:
-	double dopage_p;
-	double dopage_n;
-	double depleted;
-	double voltage;
-	double e;
-	double m;
+
 	
-	public:
-	Simple(double dopage_p, double dopage_n, double depleted, double voltage, double e, double m) : dopage_p(dopage_p), dopage_n(dopage_n), depleted(depleted), voltage(voltage),
-	e(1.6*pow(10,-19)), m(9.1 * pow(10, -31)){}
-	double drift_vel_p(double E, double t) const {return e*E*t/m;};
-};
-class Temperature: public Simple {
-	
-	private:
-	double temperature;
-	
-	public:
-	Temperature(double dopage_p, double dopage_n, double depleted, double voltage,double e, double m, double temperature) : 
-	 Simple(dopage_p, dopage_n, depleted, voltage, e, m), temperature(temperature) {}
-	 
-};
-	
-int n=1000; //how many pts for d and E
+const int n=1000; //how many pts for d and E
 double n_d=300; //thickness
 double dx=(double) n_d/n; //dx of E and d
 //int V=300; //external
@@ -43,16 +19,76 @@ int V_d=100; //depletion voltage
 int n_e=10; //nb electrons
 double T=298.16;
 
-vector<vector<double>> tps(float ini[n_e], double n_d, double mu_e,double mu_h, float E[n], double T) //ini c'est où on injecte // drift time for h and e
+/*const vector<vector<Float_t>> vel(double n_d, float E[n], double T)
 {
+	vector<double> dist(n);
+	vector<double> ini(n);
+	vector<int> i_e(n);
+	vector<int> i_h(n);
+	vector<Float_t> v_e(n);
+	vector<Float_t> v_h(n);
+	vector<vector<Float_t>> v(2, vector<Float_t>(n));
+	for(int i(0); i<n; ++i)
+	{
+		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
+		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
+		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
+		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
+		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
+		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
+		v[0][i]=v_e[i];
+		v[1][i]=v_h[i];
+	}
+	
+	return v;
+}
+*/
+
+Float_t* vel_e(double n_d, float E[n], double T)
+{
+	static Float_t v_e[n];
+	vector<double> dist(n);
+	vector<double> ini(n);
+	vector<int> i_e(n);
+	vector<int> i_h(n);
+	for(int i(0); i<n; ++i)
+	{
+		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
+		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
+		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
+		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
+	}
+	
+	return v_e;
+}
+
+Float_t* vel_h(double n_d, float v_h[n], float E[n], double T)
+{
+	vector<double> dist(n);
+	vector<double> ini(n);
+	vector<int> i_h(n);
+	for(int i(0); i<n; ++i)
+	{
+		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
+		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
+		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
+		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
+	}
+	
+	return v_h;
+}
+
+vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
+{
+	vector<double> v_e(n_e);
+	vector<double> v_h(n_e);
 	vector<double> dist(n_e);
 	vector<int> i_e(n_e);
 	vector<int> i_h(n_e);
-	vector<double> v_e(n_e);
-	vector<double> v_h(n_e);
-	//vector<double> t_e(n_e);
-	//vector<double> t_h(n_e);
+	vector<double> t_e(n_e);
+	vector<double> t_h(n_e);
 	vector<vector<double>> t(2, vector<double>(n_e));
+
 	
 	for(int i(0); i<n_e; ++i)
 	{
@@ -178,27 +214,28 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 					
 		}	
 		
-			/*for(int j(0); j<n_t;++j)
-			{
-				cout<<"deuxieme j"<<j<<endl;
-				I[j]=0;
-				for(int i(0); i<n_e;++i)
-				{
-					cout<<"deuxieme i "<<i<<endl;
-					I[j]+=I_nv[i][j];
-				}*/
 }
 		
 
 
 
+
 void tp4b(int V=300)
 {
-	
+	const int N = 20;
+    float E_[N];
+    const double start = 3.0;
+    const double end = 5.0;
+    const double step = (end - start) / (N - 1);
+    for (int i = 0; i < N; i++) {
+        E_[i] = pow(10, start + i * step);
+    }
 	/*vector<double> E(n);
 	vector<double> d(n);
 	vector<double> t(n_t);
 	vector<double> I(n_t);*/
+	/*float v_e[n];
+	float v_h[n];*/
 	float E[n];
 	float d[n];
 	float t[n_t];
@@ -209,18 +246,23 @@ void tp4b(int V=300)
 	
 	for(int i(0); i<n_t; ++i)
 	{
+		t[i]=0;
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
 	}
-	
+	for(int k(0); k<n; ++k)
+	{
+		E[k]=0;
+		d[k]=0;
+	}
+
 	
 	fct_E(E, d, V_d,V, 1);
-	
-	
-	double mu_e=1350/pow(10,-4);
-	double mu_h=450/pow(10,-4);
-	vector<vector<double>> temps=tps(ini, n_d, mu_e, mu_h, E,T);
+
+	//double mu_e=1350/pow(10,-4);
+	//double mu_h=450/pow(10,-4);
+	vector<vector<double>> temps=tps(ini, n_d, E,T);
 	//cout<<"size temps"<<temps.size()<<endl<<"size temps ligne"<<temps[0].size();
 	fct_I(I_e, t, dt, temps[0], 1);
 	fct_I(I_h, t, dt, temps[1], 1);
@@ -275,18 +317,11 @@ void tp4b(int V=300)
 	
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
-	
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-
-	
-	
 	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 100);
 	hpx1->Draw();
-	
-	
 	hpx1->GetYaxis()->SetTitle("I");
-
 	hpx1->GetYaxis()->SetLabelSize(0.05);
 	hpx1->GetXaxis()->SetLabelSize(0.05);
 	hpx1->GetYaxis()->SetTitleSize(0.05);
@@ -297,9 +332,7 @@ void tp4b(int V=300)
 	hpx1->GetXaxis()->SetTitle("ns");
 	hpx1->GetXaxis()->CenterTitle();
 	
-	
-	
-	
+
 	TGraph *gr_I_e = new TGraph (n_t, t, I_e);
 	gr_I_e ->SetMarkerStyle(20);
 	gr_I_e ->SetMarkerColor(2);
@@ -323,23 +356,55 @@ void tp4b(int V=300)
 	gr_I_tot ->SetMarkerSize(1.0);
 	gr_I_tot ->SetLineWidth(2);
 	gr_I_tot ->SetLineColor(1);
-	
-	
+
 	auto legend = new TLegend(); //0.2,0.3,0.2,0.3
 	vector<TString> mylgd ={"I_{e}","I_{h}", "I_{tot}"};
 	legend->AddEntry(gr_I_e,mylgd[0], "l");
 	legend->AddEntry(gr_I_h,mylgd[1], "l");
 	legend->AddEntry(gr_I_tot,mylgd[2], "l");
 
-	
-	//mg->Add(gr_I_h);
-	//mg->Add(gr_I_e);	
-	//mg->Draw("APLC");
+
+
 	gr_I_e->Draw("L");
 	gr_I_h->Draw("L");
 	gr_I_tot->Draw("L");
 	legend->Draw();
 	
+
+
+	Float_t* ve=vel_e(n_d, E_, 300);
+	TCanvas *canvas2 = new TCanvas("canvas", "Electron velocity vs E", 800, 600);
+    TH2F *hpx2 = new TH2F("hpx2", "Electric", 20, 0, 300, 100, 0, 1e3);
+	
+	hpx2->Draw();
+	hpx2->GetYaxis()->SetTitle("vel");
+	hpx2->GetYaxis()->SetLabelSize(0.05);
+	hpx2->GetXaxis()->SetLabelSize(0.05);
+	hpx2->GetYaxis()->SetTitleSize(0.05);
+	hpx2->GetXaxis()->SetTitleSize(0.05);
+	hpx2->GetXaxis()->SetNoExponent();
+	hpx2->SetTitle("vel, v vs E");
+	hpx2->GetYaxis()->CenterTitle();
+	hpx2->GetXaxis()->SetTitle("vel");
+	hpx2->GetXaxis()->CenterTitle();
+
+	
+	TGraph *graph_Vel = new TGraph(n, E_, ve);
+    graph_Vel->SetTitle("Electron velocity vs E");
+    graph_Vel->GetXaxis()->SetTitle("E");
+    graph_Vel->GetYaxis()->SetTitle("Velocity");
+    graph_Vel ->SetMarkerStyle(20);
+	graph_Vel ->SetMarkerColor(2);
+	graph_Vel ->SetMarkerSize(1.0);
+	graph_Vel ->SetLineWidth(2);
+	graph_Vel ->SetLineColor(2);
+	
+	graph_Vel->Draw("L");
+	
+	
+	//mg->Add(gr_I_h);
+	//mg->Add(gr_I_e);	
+	//mg->Draw("APLC");
 	
 	
 }
