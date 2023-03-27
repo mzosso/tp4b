@@ -44,19 +44,12 @@ double T=298.16;
 }
 */
 
-Float_t* vel_e(double n_d, float E[n], double T)
+Float_t* vel_e( float E_[n], double T)
 {
 	static Float_t v_e[n];
-	vector<double> dist(n);
-	vector<double> ini(n);
-	vector<int> i_e(n);
-	vector<int> i_h(n);
 	for(int i(0); i<n; ++i)
 	{
-		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
-		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
-		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
-		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
+		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E_[i])/pow((pow((1+(E_[i]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66))));
 	}
 	
 	return v_e;
@@ -222,13 +215,18 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 
 void tp4b(int V=300)
 {
-	const int N = 20;
+	const int N = 1000;
     float E_[N];
+	for(int l = 0; l < N; l++)
+	{
+		E_[l]=0;
+	}
     const double start = 3.0;
     const double end = 5.0;
     const double step = (end - start) / (N - 1);
     for (int i = 0; i < N; i++) {
         E_[i] = pow(10, start + i * step);
+		cout<<"E_  "<<E_[i]<<endl;
     }
 	/*vector<double> E(n);
 	vector<double> d(n);
@@ -256,6 +254,10 @@ void tp4b(int V=300)
 		E[k]=0;
 		d[k]=0;
 	}
+	for(int c(0); c<n_e;++c)
+	{
+		ini[c]=0;
+	}
 
 	
 	fct_E(E, d, V_d,V, 1);
@@ -263,7 +265,7 @@ void tp4b(int V=300)
 	//double mu_e=1350/pow(10,-4);
 	//double mu_h=450/pow(10,-4);
 	vector<vector<double>> temps=tps(ini, n_d, E,T);
-	//cout<<"size temps"<<temps.size()<<endl<<"size temps ligne"<<temps[0].size();
+
 	fct_I(I_e, t, dt, temps[0], 1);
 	fct_I(I_h, t, dt, temps[1], 1);
 	
@@ -372,9 +374,13 @@ void tp4b(int V=300)
 	
 
 
-	Float_t* ve=vel_e(n_d, E_, 300);
-	TCanvas *canvas2 = new TCanvas("canvas", "Electron velocity vs E", 800, 600);
-    TH2F *hpx2 = new TH2F("hpx2", "Electric", 20, 0, 300, 100, 0, 1e3);
+	Float_t* ve=vel_e(E_, 300);
+	for(int j(0); j<n; ++j)
+	{
+		cout<<"ve "<<j<< ":  "<<ve[j]<<endl;
+	}
+	TCanvas *canvas2 = new TCanvas("canvas", "Electron velocity vs E", 200, 10, 1000, 650);
+    TH2F *hpx2 = new TH2F("hpx2", "Electric", 20, 0, n, 3e5, 3e6);
 	
 	hpx2->Draw();
 	hpx2->GetYaxis()->SetTitle("vel");
@@ -385,7 +391,7 @@ void tp4b(int V=300)
 	hpx2->GetXaxis()->SetNoExponent();
 	hpx2->SetTitle("vel, v vs E");
 	hpx2->GetYaxis()->CenterTitle();
-	hpx2->GetXaxis()->SetTitle("vel");
+	hpx2->GetXaxis()->SetTitle("E");
 	hpx2->GetXaxis()->CenterTitle();
 
 	
