@@ -9,13 +9,13 @@ using namespace std;
 
 	
 const int n=1000; //how many pts for d and E
-double n_d=300; //thickness, micro
+double n_d=100; //thickness, micro
 double dx=(double) n_d/n; //dx of E and d //micro
 //int V=300; //external
 int s=100; //how many ns
 int n_t=1000; //how many pts for s and I
 double dt= (double) s/n_t; //ns
-int V_d=100; //depletion voltage
+int V_d=300; //depletion voltage
 int n_e=10; //nb electrons
 double T=298.16; //K
 
@@ -48,28 +48,31 @@ Float_t* vel_e( float E_[n], double T)
 {
 	static Float_t v_e[n];
 	for(int i(0); i<n; ++i)
-	{
-		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E_[i])/pow((pow((1+(E_[i]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66))));
+	{	double num=1.42e9*E_[i]*pow(T,-2.42);
+		double den = pow(1.0+pow(E_[i]/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		v_e[i]=num/den;
+		//v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E_[i])/pow((pow((1+(E_[i]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66))));
 	}
 	
 	return v_e; //cm/s
 }
 
-/*Float_t* vel_h(double n_d, float v_h[n], float E[n], double T)
+Float_t* vel_h(float E_[n], double T)
 {
-	vector<double> dist(n);
-	vector<double> ini(n);
-	vector<int> i_h(n);
+	
+	double pot_h=0.46*pow(T, 0.17);
+	static Float_t v_h[n];
 	for(int i(0); i<n; ++i)
 	{
-		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //micro
-		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron, micro
-		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
-		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
+		double num_=1.31e8*E_[i]*pow(T,-2.2);
+		double den_ = pow(1.0+pow(E_[i]/1.24/pow(T,1.68),pot_h),(1/pot_h));
+		
+		v_h[i]=num_/den_;
+		//(1.31*pow(10,8)*pow(T, -2.2)*E_[i])/pow((pow((1+(E_[i]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
 	}
 	
 	return v_h;
-}*/
+}
 
 vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
 {
@@ -81,21 +84,30 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //in
 	vector<double> t_e(n_e);
 	vector<double> t_h(n_e);
 	vector<vector<double>> t(2, vector<double>(n_e));
-
+	double pot_h=0.46*pow(T, 0.17);
 	
 	for(int i(0); i<n_e; ++i)
 	{
 		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; // micrometre
 		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron, micrometre
-		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
+		i_e[i]=floor(abs(n*dist[i]/n_d)); // avec d[i]=dist=n_d/n*i
 		//cout<<"hello"<<i<<endl;
 		//cout<<"dist"<<dist[i]<<endl;
 		//cout<<"i_e"<<i_e[i]<<endl;
-		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
-		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66))); //cm /s
+		i_h[i]=floor(abs(n*ini[i]/n_d)); // ATTENTION, ROUND DONC PAS E EXACT
+		//the function E returns us actually a voltage, which means I have to derive it by the thickness (in micro) and then
+		//multiply by 1e4
+		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T,-2.42);
+		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		v_e[i]=num/den;
+		//v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]]/n_d*1e4)/pow((1+pow(E[i_e[i]]/n_d*1e4/(1.01*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66)))); //cm /s
 		//cout<<"hola"<<i<<endl;
 		//cout<<"ini"<<ini[i]<<endl;
-		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17))); //cm/s
+		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T,-2.2);
+		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T,1.68),pot_h),(1/pot_h));
+		
+		v_h[i]=num_/den_;
+		//v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]]/n_d*1e4)/pow((1+pow(E[i_h[i]]/n_d*1e4/(1.24*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/(0.46*pow(T,0.17)))); //cm/s
 		//v_e[i]=mu_e*E[i_e[i]];
 		//v_h[i]=mu_h*E[i_h[i]];
 		//t_e[i]=dist[i]/v_e[i];
@@ -117,35 +129,32 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 {
 		
 	
-		/*vector<float E[n]> E_sup(nb);
-		vector<double> V_sup(nb);*/
 		
-		double a=(double)-V_d/n_d; //pente du champ E
+		//This is actually the Voltage as a function of the thickness, so the electric field would be the V/d
+		double a=(double)-V_d/n_d; //pente du champ E, V/micrometre
 		for(int i(0); i<n;++i)
 		{
 			if (cst==0)
-				{E[i]=V/n_d;}
+				{E[i]=V;}
 			else
 			{
 				/*d.push_back(n_d/n*(n-i));
 				E.push_back(V/d[i]);*/
 				//d[i]= (double) n_d/n*(n-i);
-				d[i] = (double) n_d/n*i; //micrometre
-				if (V_d<=V)
-				{
-					double dif=(V-V_d)/n_d;//volt/micrometre
-					E[i]=(double) 1e4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
+				d[i] = (double) abs(n_d/n*i); //micrometre
+				//if (V_d<=V)
+				//{
+					//double dif=(V-V_d)/n_d;//volt/micrometre
+					//E[i]=(double) 1e-4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
+					E[i]=(double) a*d[i]+V;
+					cout<<"E1   "<<E[i]<<endl;
 					
-				}
-				else
+				//}
+				/*else
 				{
 					double dif=(V-V_d)/n_d;// volt/micrometre
-					E[i]=(double) 1e4*(dif+2.0/n_d*V_d*(1-d[i]/double(n_d)));//I transform it to volt/cm
-				}
-				/*for (in j(0); j<=nb;++j)
-				{
-					V_sup[i]=V_d+50-j*nb;
-					E_sup[i][j]=(double) V_sup[i]+a*d[i];
+					E[i]=(double) abs(1e-4*(dif+2.0/n_d*V_d*(1-d[i]/double(n_d))));//I transform it to volt/cm
+					cout<<"E2   "<<E[i]<<endl;
 				}*/
 			}    
 	}
@@ -185,19 +194,21 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 				{
 					//cout<<"i"<<i;
 					//tps[i]*=1e9;
-					num_dt[i]=round(tps[i]/(dt*1e9));//nombre de dt
+					num_dt[i]=floor(abs(tps[i]/(dt*1e9)));//nombre de dt
 					
 					cout<<i<<endl<<"temps  "<<tps[i]<<endl;
-					//cout<<"dt  "<<dt<<endl;
+					cout<<"num_dt  "<<num_dt[i]<<endl;
 					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
 					cout<<"height   "<<height_I[i]<<endl;
 			
-					for(int j(0); j<num_dt[i]; ++j)
+					for(int j(0); j<=num_dt[i]; ++j)
 					{
 						//cout<<"gutenTAg"<<j<<endl;
 						I[j]+=height_I[i];
+						cout<<"I   "<<I[j]<<endl;
 						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
 					}
+					
 				}
 					/*for(int g(num_dt[i]); g<n_t;++g)
 					{
@@ -213,7 +224,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 
 
 
-void tp4b(int V=300)
+void tp4b(int V=500)
 {
 	const int N = 1000;
     float E_[N];
@@ -226,7 +237,7 @@ void tp4b(int V=300)
     const double step = (end - start) / (N - 1);
     for (int i = 0; i < N; i++) {
         E_[i] = pow(10, start + i * step);
-		cout<<"E_  "<<E_[i]<<endl;
+		//cout<<"E_  "<<E_[i]<<endl;
     }
 	/*vector<double> E(n);
 	vector<double> d(n);
@@ -258,7 +269,7 @@ void tp4b(int V=300)
 	{
 		ini[c]=0;
 	}
-
+	
 	
 	fct_E(E, d, V_d,V, 1);
 
@@ -321,7 +332,7 @@ void tp4b(int V=300)
 	canv1->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 100);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 20);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
@@ -346,7 +357,7 @@ void tp4b(int V=300)
 	
 	TGraph *gr_I_h = new TGraph (n_t, t, I_h);
 	gr_I_h ->SetMarkerStyle(20);
-	gr_I_h ->SetMarkerColor(3);
+	gr_I_h ->SetMarkerColor(4);
 	gr_I_h ->SetMarkerSize(1.0);
 	gr_I_h ->SetLineWidth(2);
 	gr_I_h ->SetLineColor(4);
@@ -375,12 +386,12 @@ void tp4b(int V=300)
 
 
 	Float_t* ve=vel_e(E_, 300);
-	for(int j(0); j<n; ++j)
+	/*for(int j(0); j<n; ++j)
 	{
 		cout<<"ve "<<j<< ":  "<<ve[j]<<endl;
-	}
-	TCanvas *canvas2 = new TCanvas("canvas", "Electron velocity vs E", 200, 10, 1000, 650);
-    TH2F *hpx2 = new TH2F("hpx2", "Electric", 100, 1e5,n, 1e6, 1e5, 1e6);
+	}*/
+	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
+    TH2F *hpx2 = new TH2F("hpx2", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
 	
 	hpx2->Draw();
 	hpx2->GetYaxis()->SetTitle("vel");
@@ -393,7 +404,8 @@ void tp4b(int V=300)
 	hpx2->GetYaxis()->CenterTitle();
 	hpx2->GetXaxis()->SetTitle("E");
 	hpx2->GetXaxis()->CenterTitle();
-
+	gPad->SetLogx();
+	gPad->SetLogy();
 	
 	TGraph *graph_Vel = new TGraph(n, E_, ve);
     graph_Vel->SetTitle("Electron velocity vs E");
@@ -405,12 +417,47 @@ void tp4b(int V=300)
 	graph_Vel ->SetLineWidth(2);
 	graph_Vel ->SetLineColor(2);
 	
-	graph_Vel->Draw("L");
 	
+
+	Float_t* vh=vel_h(E_, 300);
+	/*TCanvas *canvas3 = new TCanvas("canvas3", "Hole velocity vs E", 200, 10, 1000, 650);
+    TH2F *hpx3 = new TH2F("hpx3", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
+	
+	hpx3->Draw();
+	hpx3->GetYaxis()->SetTitle("vel");
+	hpx3->GetYaxis()->SetLabelSize(0.05);
+	hpx3->GetXaxis()->SetLabelSize(0.05);
+	hpx3->GetYaxis()->SetTitleSize(0.05);
+	hpx3->GetXaxis()->SetTitleSize(0.05);
+	hpx3->GetXaxis()->SetNoExponent();
+	hpx3->SetTitle("vel_h, v vs E");
+	hpx3->GetYaxis()->CenterTitle();
+	hpx3->GetXaxis()->SetTitle("E");
+	hpx3->GetXaxis()->CenterTitle();
+	gPad->SetLogx();
+	gPad->SetLogy();*/
+	
+	TGraph *graph_Velh = new TGraph(n, E_, vh);
+    graph_Velh->SetTitle("Hole velocity vs E");
+    graph_Velh->GetXaxis()->SetTitle("E");
+    graph_Velh->GetYaxis()->SetTitle("Velocity");
+    graph_Velh ->SetMarkerStyle(20);
+	graph_Velh ->SetMarkerColor(4);
+	graph_Velh ->SetMarkerSize(1.0);
+	graph_Velh ->SetLineWidth(2);
+	graph_Velh ->SetLineColor(4);
+
+	auto legend1 = new TLegend(); //0.2,0.3,0.2,0.3
+	vector<TString> mylgd1 ={"v_{e}","v_{h}"};
+	legend1->AddEntry(graph_Vel,mylgd1[0], "l");
+	legend1->AddEntry(graph_Velh,mylgd1[1], "l");
+	
+
+	graph_Vel->Draw("L");
+	graph_Velh->Draw("L");
+	legend1->Draw();
 	
 	//mg->Add(gr_I_h);
 	//mg->Add(gr_I_e);	
 	//mg->Draw("APLC");
-	
-	
 }
