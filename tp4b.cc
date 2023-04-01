@@ -194,7 +194,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 				{
 					//cout<<"i"<<i;
 					//tps[i]*=1e9;
-					num_dt[i]=floor(abs(tps[i]/(dt*1e9)));//nombre de dt
+					num_dt[i]=floor(abs(1e1*tps[i]/(dt)));//nombre de dt (arbitrarily put *1e1)
 					
 					cout<<i<<endl<<"temps  "<<tps[i]<<endl;
 					cout<<"num_dt  "<<num_dt[i]<<endl;
@@ -332,7 +332,7 @@ void tp4b(int V=500)
 	canv1->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 20);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 1000);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
