@@ -18,6 +18,7 @@ double dt= (double) s/n_t; //ns
 int V_d=300; //depletion voltage
 int n_e=10; //nb electrons
 double T=298.16; //K
+double cutoff=2; //GHz
 
 /*const vector<vector<Float_t>> vel(double n_d, float E[n], double T)
 {
@@ -43,7 +44,7 @@ double T=298.16; //K
 	return v;
 }
 */
-
+static Float_t vel_h_at_position_in_field(float value_of_field, double temp);
 Float_t* vel_e( float E_[n], double T)
 {
 	static Float_t v_e[n];
@@ -62,16 +63,18 @@ Float_t* vel_h(float E_[n], double T)
 	
 	double pot_h=0.46*pow(T, 0.17);
 	static Float_t v_h[n];
-	for(int i(0); i<n; ++i)
-	{
-		double num_=1.31e8*E_[i]*pow(T,-2.2);
-		double den_ = pow(1.0+pow(E_[i]/1.24/pow(T,1.68),pot_h),(1/pot_h));
-		
-		v_h[i]=num_/den_;
-		//(1.31*pow(10,8)*pow(T, -2.2)*E_[i])/pow((pow((1+(E_[i]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
-	}
-	
+
+	transform(E_, E_+n, v_h, [T](float E){return vel_h_at_position_in_field(E,T);});
 	return v_h;
+}
+
+Float_t vel_h_at_position_in_field(float value_of_field, double temp)
+{
+	double pot_h=0.46*pow(temp, 0.17);
+	double num_=1.31e8*value_of_field*pow(temp,-2.2);
+	double den_ = pow(1.0+pow(value_of_field/1.24/pow(temp,1.68),pot_h),(1/pot_h));
+		
+	return num_/den_;
 }
 
 vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
@@ -219,10 +222,52 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 		}	
 		
 }
-		
 
 
+void filter_(double cutoff,Float_t filter[n_t],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
+{
+	//static Float_t f[n_t];
 
+	for(int i(0); i<n_t; ++i)
+	{
+		f[n_t-i-1]=floor(1e9*1/(t[i]+1)); //in order for f to increase t is in seconds, we want f in GHz, so *1e9
+	}
+	int j=0;
+	while ((j<1e9) and (f[j]<=cutoff)){
+		filter[f[j]]=1;
+		j+=1;
+	} //filters nothing until cutoff
+
+	int cut=j;
+	double a=tan(deg);
+	double b=1-a*f[cut];
+	int max=n_t-j;
+	int l=0;
+	while((j<n_t) and (l<max) and (a*l+b>=0)) {
+		filter[f[j]]=a*l+b;
+		j+=1;
+		l+=0;
+	}
+	
+	if(a*l+b<=0)
+	{
+		while(j<n_t) {
+			filter[j]=0;
+			j+=1;
+		}
+	}
+
+
+}
+
+
+void apply_filter(float filter[n_t], int f[n_t], float I[n_t])
+{
+	for(int i(0); i<n_t; ++i)
+	{
+		I[i]=I[i]*filter[f[i]];
+	}
+}
 
 void tp4b(int V=500)
 {
@@ -252,13 +297,17 @@ void tp4b(int V=500)
 	float I_h[n_t];
 	float I_tot[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
-	
+	Float_t filter[n_t];
+	int f[n_t];
+
 	for(int i(0); i<n_t; ++i)
 	{
 		t[i]=0;
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
+		filter[i]=0;
+		f[n_t]=0;
 	}
 	for(int k(0); k<n; ++k)
 	{
@@ -382,6 +431,34 @@ void tp4b(int V=500)
 	gr_I_h->Draw("L");
 	gr_I_tot->Draw("L");
 	legend->Draw();
+	
+	filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
+	apply_filter(&filter[n_t], &f[n_t], &I_e[n_t]);
+	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
+	canvfilter->SetGrid();
+	/*TMultiGraph *mg = new TMultiGraph();
+	mg->SetTitle("Signals");*/
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 1000);
+	hpxfilter->Draw();
+	hpxfilter->GetYaxis()->SetTitle("I");
+	hpxfilter->GetYaxis()->SetLabelSize(0.05);
+	hpxfilter->GetXaxis()->SetLabelSize(0.05);
+	hpxfilter->GetYaxis()->SetTitleSize(0.05);
+	hpxfilter->GetXaxis()->SetTitleSize(0.05);
+	hpxfilter->GetXaxis()->SetNoExponent();
+	hpxfilter->SetTitle("I, ns vs I");
+	hpxfilter->GetYaxis()->CenterTitle();
+	hpxfilter->GetXaxis()->SetTitle("ns");
+	hpxfilter->GetXaxis()->CenterTitle();
+	
+
+	TGraph *gr_filter = new TGraph (n_t, t, I_e);
+	gr_filter->SetMarkerStyle(20);
+	gr_filter ->SetMarkerColor(2);
+	gr_filter ->SetMarkerSize(1.0);
+	gr_filter ->SetLineWidth(2);
+	gr_filter ->SetLineColor(2);
+	
 	
 
 
