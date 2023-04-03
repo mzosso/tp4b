@@ -224,27 +224,30 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 }
 
 
-void filter_(double cutoff,Float_t filter[n_t],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
+/*void filter_(double cutoff,Float_t filter[1000000000],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
 {
 	//static Float_t f[n_t];
 
 	for(int i(0); i<n_t; ++i)
 	{
-		f[n_t-i-1]=floor(1e9*1/(t[i]+1)); //in order for f to increase t is in seconds, we want f in GHz, so *1e9
+		f[n_t-i-1]=floor(abs(1e9*1/(t[i]+1))); //in order for f to increase t is in seconds, we want f in GHz, so *1e9
+		cout<<"f   "<<f[n_t-i-1]<<endl;
 	}
 	int j=0;
-	while ((j<1e9) and (f[j]<=cutoff)){
+	while ((j<n_t) and (f[j]<=cutoff)){
 		filter[f[j]]=1;
 		j+=1;
 	} //filters nothing until cutoff
+	
+	int j=0;
 
-	int cut=j;
 	double a=tan(deg);
-	double b=1-a*f[cut];
-	int max=n_t-j;
+	//double b=1-a*f[cut];
+	b=1+tan(deg)*cutoff;
+	//int max=n_t-j;
 	int l=0;
 	while((j<n_t) and (l<max) and (a*l+b>=0)) {
-		filter[f[j]]=a*l+b;
+		filter[j]=-a*l+b;
 		j+=1;
 		l+=0;
 	}
@@ -258,15 +261,30 @@ void filter_(double cutoff,Float_t filter[n_t],int f[n_t],float t[n_t], double d
 	}
 
 
-}
+}*/
 
 
-void apply_filter(float filter[n_t], int f[n_t], float I[n_t])
+void apply_filter(float I[n_t], double deg)
 {
-	for(int i(0); i<n_t; ++i)
+	//filter=0 when f in (cut+op,inf)
+	//filter =a*l+b when f in (cut, cut+op)
+	//filter=1 when f in (0,cut)
+	double op=tan(deg)*1;
+	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))));
+	int nb_dt=ceil(abs(1/(dt*cutoff)));
+
+	for(int i(0); i<nb_dt_0; ++i)
 	{
-		I[i]=I[i]*filter[f[i]];
+		I[i]=0;
 	}
+	
+	double a=-tan(deg);
+	double b=1+tan(deg)*cutoff;
+	for(int i(nb_dt_0); i<nb_dt; ++i)
+	{
+		I[i]=I[i]*(a*1/i+b);
+	}
+	//I stays the same for nb_dt to 100 ns
 }
 
 void tp4b(int V=500)
@@ -432,8 +450,8 @@ void tp4b(int V=500)
 	gr_I_tot->Draw("L");
 	legend->Draw();
 	
-	filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
-	apply_filter(&filter[n_t], &f[n_t], &I_e[n_t]);
+	//filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
+	apply_filter(&I_e[n_t], 1.0);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
