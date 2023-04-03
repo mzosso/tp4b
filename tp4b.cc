@@ -150,7 +150,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 					//double dif=(V-V_d)/n_d;//volt/micrometre
 					//E[i]=(double) 1e-4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
 					E[i]=(double) a*d[i]+V;
-					cout<<"E1   "<<E[i]<<endl;
+					//cout<<"E1   "<<E[i]<<endl;
 					
 				//}
 				/*else
@@ -199,10 +199,10 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 					//tps[i]*=1e9;
 					num_dt[i]=floor(abs(1e1*tps[i]/(dt)));//nombre de dt (arbitrarily put *1e1)
 					
-					cout<<i<<endl<<"temps  "<<tps[i]<<endl;
-					cout<<"num_dt  "<<num_dt[i]<<endl;
+					//cout<<i<<endl<<"temps  "<<tps[i]<<endl;
+					//cout<<"num_dt  "<<num_dt[i]<<endl;
 					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
-					cout<<"height   "<<height_I[i]<<endl;
+					//cout<<"height   "<<height_I[i]<<endl;
 			
 					for(int j(0); j<=num_dt[i]; ++j)
 					{
@@ -272,17 +272,35 @@ void apply_filter(float I[n_t], double deg)
 	double op=tan(deg)*1;
 	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))));
 	int nb_dt=ceil(abs(1/(dt*cutoff)));
+	
+	cout <<"nb_dt  "<<nb_dt<<endl;
+	/*for(int j(0); j<n_t; ++j)
+	{
+		cout<<"I before filter  "<<I[j]<<endl;
+	}*/
 
-	for(int i(0); i<nb_dt_0; ++i)
+	for(int i(0); i<=nb_dt_0; ++i)
 	{
 		I[i]=0;
 	}
 	
 	double a=-tan(deg);
+	cout<<"a   "<<a<<endl;
 	double b=1+tan(deg)*cutoff;
-	for(int i(nb_dt_0); i<nb_dt; ++i)
+	//double b=1;
+	cout<<"b   "<<b<<endl;
+
+	//int l=0;
+	cout <<"filter(nb_dt_0)  "<<a*1.0/((nb_dt_0+1)*dt)+b<<endl;
+	for(int i(nb_dt_0+1); i<=nb_dt; ++i)
 	{
-		I[i]=I[i]*(a*1/i+b);
+		//cout<<"i  "<<i<<endl;
+		//cout<<"filter    "<<(a*l+b)<<endl;
+		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
+		//I[i]=I[i]*(a*l+b);
+		I[i]=I[i]*(a*1/(i*dt)+b);
+		//l+=1;
+		//cout<<"I filtered   "<<I[i]<<endl;
 	}
 	//I stays the same for nb_dt to 100 ns
 }
@@ -315,8 +333,8 @@ void tp4b(int V=500)
 	float I_h[n_t];
 	float I_tot[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
-	Float_t filter[n_t];
-	int f[n_t];
+	//Float_t filter[n_t];
+	//int f[n_t];
 
 	for(int i(0); i<n_t; ++i)
 	{
@@ -324,8 +342,8 @@ void tp4b(int V=500)
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
-		filter[i]=0;
-		f[n_t]=0;
+		//filter[i]=0;
+		//f[n_t]=0;
 	}
 	for(int k(0); k<n; ++k)
 	{
@@ -350,6 +368,7 @@ void tp4b(int V=500)
 	for(int i(0); i<n_t;++i)
 	{
 		I_tot[i]=I_h[i]+I_e[i];
+		cout<<"I_tot   "<<I_tot[i]<<endl;
 	}
 	
 	while (gPad !=0) gPad ->Close();
@@ -451,7 +470,7 @@ void tp4b(int V=500)
 	legend->Draw();
 	
 	//filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
-	apply_filter(&I_e[n_t], 1.0);
+	apply_filter(I_e, 1.0);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
