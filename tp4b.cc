@@ -100,14 +100,14 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //in
 		i_h[i]=floor(abs(n*ini[i]/n_d)); // ATTENTION, ROUND DONC PAS E EXACT
 		//the function E returns us actually a voltage, which means I have to derive it by the thickness (in micro) and then
 		//multiply by 1e4
-		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T,-2.42);
-		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		double num=1.42e9*E[i_e[i]]*pow(T,-2.42);
+		double den = pow(1.0+pow(E[i_e[i]]/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
 		v_e[i]=num/den;
 		//v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]]/n_d*1e4)/pow((1+pow(E[i_e[i]]/n_d*1e4/(1.01*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66)))); //cm /s
 		//cout<<"hola"<<i<<endl;
 		//cout<<"ini"<<ini[i]<<endl;
-		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T,-2.2);
-		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T,1.68),pot_h),(1/pot_h));
+		double num_=1.31e8*E[i_h[i]]*pow(T,-2.2);
+		double den_ = pow(1.0+pow(E[i_h[i]]/1.24/pow(T,1.68),pot_h),(1/pot_h));
 		
 		v_h[i]=num_/den_;
 		//v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]]/n_d*1e4)/pow((1+pow(E[i_h[i]]/n_d*1e4/(1.24*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/(0.46*pow(T,0.17)))); //cm/s
@@ -149,7 +149,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 				//{
 					//double dif=(V-V_d)/n_d;//volt/micrometre
 					//E[i]=(double) 1e-4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
-					E[i]=(double) a*d[i]+V;
+					E[i]=(double) (a*d[i]+V)/n_d/1e4;//en V/micro/1e4=V/cm
 					//cout<<"E1   "<<E[i]<<endl;
 					
 				//}
@@ -196,8 +196,8 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 				for(int i(0); i<n_e;++i)
 				{
 					//cout<<"i"<<i;
-					//tps[i]*=1e9;
-					num_dt[i]=floor(abs(1e1*tps[i]/(dt)));//nombre de dt (arbitrarily put *1e1)
+					//tps in seconds, dt in nanoseconds
+					num_dt[i]=floor(abs(tps[i]/(1e9*dt)));//nombre de dt (arbitrarily put *1e1)
 					
 					//cout<<i<<endl<<"temps  "<<tps[i]<<endl;
 					//cout<<"num_dt  "<<num_dt[i]<<endl;
@@ -222,9 +222,26 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 		}	
 		
 }
+void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to n_t
+{
+	//normalising factors??
+   for(int k(0); k<n_t; ++k) //fill freq vector
+	{	
+		freq[k] = 0;
+		for (int i = 0; i < n_t; ++i) //integral
+		{
+			float Re = cos(2*M_PI*k*i);
+			float Im = -sin(2*M_PI*k*i);
+			freq[k] += I[i] * (Re + Im);
+		}
+	}
+	/*double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
+	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
+	int nb_dt=ceil(abs(1/(dt*cutoff)));//when not 1 anymore*/
+}
 
 
-/*void filter_(double cutoff,Float_t filter[1000000000],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
+/*void filter_(double cutoff,Float_t filter[n_t],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
 {
 	//static Float_t f[n_t];
 
@@ -264,7 +281,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 }*/
 
 
-void apply_filter(float I[n_t], double deg)
+void construct_filter_(float filter[n_t], double deg)
 {
 	//filter=0 when f in (cut+op,inf)
 	//filter =a*l+b when f in (cut, cut+op)
@@ -274,19 +291,15 @@ void apply_filter(float I[n_t], double deg)
 	int nb_dt=ceil(abs(1/(dt*cutoff)));
 	
 	cout <<"nb_dt  "<<nb_dt<<endl;
-	/*for(int j(0); j<n_t; ++j)
-	{
-		cout<<"I before filter  "<<I[j]<<endl;
-	}*/
 
 	for(int i(0); i<=nb_dt_0; ++i)
 	{
-		I[i]=0;
+		filter[i]=0;
 	}
 	
-	double a=-tan(deg);
+	double a=-tan(deg*M_PI/180);
 	cout<<"a   "<<a<<endl;
-	double b=1+tan(deg)*cutoff;
+	double b=1+tan(deg*M_PI/180)*cutoff;
 	//double b=1;
 	cout<<"b   "<<b<<endl;
 
@@ -297,12 +310,35 @@ void apply_filter(float I[n_t], double deg)
 		//cout<<"i  "<<i<<endl;
 		//cout<<"filter    "<<(a*l+b)<<endl;
 		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
-		//I[i]=I[i]*(a*l+b);
-		I[i]=I[i]*(a*1/(i*dt)+b);
-		//l+=1;
-		//cout<<"I filtered   "<<I[i]<<endl;
+		filter[i]=(a*1/(i*dt)+b);
 	}
-	//I stays the same for nb_dt to 100 ns
+	for(int i(nb_dt+1); i<n_t; ++i)
+	{
+		filter[i]=1;
+	}
+}
+
+void apply_filter(float freq[n_t], float filter[n_t])
+{
+	for(int i(0); i<n_t; ++i)
+	{
+		freq[i]=freq[i]*filter[i];
+	}
+}
+
+void inverse_fourier(float freq[n_t], float new_I[n_t])
+{
+	//normalising factors??
+   for(int k(0); k<n_t; ++k) //fill freq vector
+	{	
+		new_I[k] = 0;
+		for (int i = 0; i < n_t; ++i) //integral
+		{
+			float Re = cos(2*M_PI*k*i);
+			float Im = sin(2*M_PI*k*i);
+			new_I[k] += new_I[i] * (Re + Im);
+		}
+	}
 }
 
 void tp4b(int V=500)
@@ -333,8 +369,9 @@ void tp4b(int V=500)
 	float I_h[n_t];
 	float I_tot[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
-	//Float_t filter[n_t];
-	//int f[n_t];
+	Float_t filter[n_t];
+	Float_t freq[n_t];
+	Float_t new_I[n_t];
 
 	for(int i(0); i<n_t; ++i)
 	{
@@ -342,8 +379,9 @@ void tp4b(int V=500)
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
-		//filter[i]=0;
-		//f[n_t]=0;
+		filter[i]=0;
+		freq[i]=0;
+		new_I[i]=0;
 	}
 	for(int k(0); k<n; ++k)
 	{
@@ -385,7 +423,7 @@ void tp4b(int V=500)
 	TCanvas *canv0 = new TCanvas("canv0", "E", 200, 10, 1000, 650);
 	canv0->SetGrid();
 	
-	TH2F *hpx0 = new TH2F("hpx0", "Electric", 20, 0, 300, 100, 0, 1e3);
+	TH2F *hpx0 = new TH2F("hpx0", "Electric", 20, 0, 300, 100, 0, 1e-1);
 	
 	hpx0->Draw();
 	
@@ -397,7 +435,7 @@ void tp4b(int V=500)
 	hpx0->GetYaxis()->SetTitleSize(0.05);
 	hpx0->GetXaxis()->SetTitleSize(0.05);
 	hpx0->GetXaxis()->SetNoExponent();
-	hpx0->SetTitle("E, d vs E");
+	hpx0->SetTitle("E [V/cm], d vs E");
 	hpx0->GetYaxis()->CenterTitle();
 	hpx0->GetXaxis()->SetTitle("d");
 	hpx0->GetXaxis()->CenterTitle();
@@ -470,7 +508,10 @@ void tp4b(int V=500)
 	legend->Draw();
 	
 	//filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
-	apply_filter(I_e, 1.0);
+	construct_filter_(filter, 1.0);
+	I_to_frequence(freq, I_e);
+	apply_filter(freq, filter);
+	inverse_fourier(freq, new_I);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
@@ -514,7 +555,7 @@ void tp4b(int V=500)
 	hpx2->GetYaxis()->SetTitleSize(0.05);
 	hpx2->GetXaxis()->SetTitleSize(0.05);
 	hpx2->GetXaxis()->SetNoExponent();
-	hpx2->SetTitle("vel, v vs E");
+	hpx2->SetTitle("Drift velocity, v vs E");
 	hpx2->GetYaxis()->CenterTitle();
 	hpx2->GetXaxis()->SetTitle("E");
 	hpx2->GetXaxis()->CenterTitle();
@@ -524,7 +565,7 @@ void tp4b(int V=500)
 	TGraph *graph_Vel = new TGraph(n, E_, ve);
     graph_Vel->SetTitle("Electron velocity vs E");
     graph_Vel->GetXaxis()->SetTitle("E");
-    graph_Vel->GetYaxis()->SetTitle("Velocity");
+    graph_Vel->GetYaxis()->SetTitle("v [cm/s]");
     graph_Vel ->SetMarkerStyle(20);
 	graph_Vel ->SetMarkerColor(2);
 	graph_Vel ->SetMarkerSize(1.0);
@@ -554,7 +595,7 @@ void tp4b(int V=500)
 	TGraph *graph_Velh = new TGraph(n, E_, vh);
     graph_Velh->SetTitle("Hole velocity vs E");
     graph_Velh->GetXaxis()->SetTitle("E");
-    graph_Velh->GetYaxis()->SetTitle("Velocity");
+    graph_Velh->GetYaxis()->SetTitle("v [cm/s]");
     graph_Velh ->SetMarkerStyle(20);
 	graph_Velh ->SetMarkerColor(4);
 	graph_Velh ->SetMarkerSize(1.0);
