@@ -211,8 +211,13 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 			
 					for(int j(0); j<=num_dt[i]; ++j)
 					{
+
+						int idx = j;
+						if (idx >= n_t) {
+							idx = n_t - 1;
+						}
+						I[idx] += height_I[i];
 						//cout<<"gutenTAg"<<j<<endl;
-						I[j]+=height_I[i];
 						//cout<<"I   "<<I[j]<<endl;
 						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
 					}
@@ -230,6 +235,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to n_t
 {
 	//normalising factors??
+	float normalization=1.0/n_t;
    for(int k(0); k<n_t; ++k) //fill freq vector
 	{	
 		freq[k] = 0;
@@ -243,6 +249,7 @@ void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k)
 			freq[k] += I[i] * (Re + Im);
 		}
 		cout<<"unfiltered, freq  "<<freq[k]<<endl;
+		//freq[k] *= normalization; // added normalization factor
 	}
 	/*double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
 	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
@@ -338,19 +345,24 @@ void apply_filter(float freq[n_t], float filter[n_t])
 
 void inverse_fourier(float freq[n_t], float new_I[n_t])
 {
-	//normalising factors??
-   for(int k(0); k<n_t; ++k) //fill freq vector
+	//normalising factors?? 
+	float normalization_factor = 1.0 / n_t;
+	//i is time and k frequence
+   for(int i(0); i<n_t; ++i) //fill new_I vector
 	{	
-		new_I[k] = 0;
-		for (int i = 0; i < n_t; ++i) //integral
+		new_I[i] = 0;
+		for (int k = 0; i < n_t; ++k) //integral over frequence
 		{
 			float Re = cos(2*M_PI*k*i/n_t);
 			float Im = sin(2*M_PI*k*i/n_t);
-			new_I[k] += freq[i] * (Re + Im);
+			new_I[i] += freq[k] * (Re + Im);
 			//cout<<"filtered in time domain   "<<new_I[i]<<endl;
 		}
+		//new_I[k] *= normalization_factor;
 		cout<<"new_I   "<<new_I[k]<<endl;
+		
 	}
+
 }
 
 void tp4b(int V=500)
