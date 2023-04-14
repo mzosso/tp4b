@@ -19,6 +19,7 @@ int V_d=300; //depletion voltage
 int n_e=10; //nb electrons
 double T=298.16; //K
 double cutoff=2; //GHz
+int n_f=2040; //how many points for the frequence and filter
 
 /*const vector<vector<Float_t>> vel(double n_d, float E[n], double T)
 {
@@ -154,7 +155,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 					//double dif=(V-V_d)/n_d;//volt/micrometre
 					//E[i]=(double) 1e-4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
 					//E[i]=(double) (a*d[i]+V)/n_d/1e4; // /n_d/1e4//en V/micro/1e4=V/cm
-					E[i]=(double) a*d[i]+V;
+					E[i]=(double) (a*d[i]+V)/n_d;
 					//cout<<"E1   "<<E[i]<<endl;
 					
 				//}
@@ -175,7 +176,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 	for(int i(0); i<n_t;++i)
 		{
 			//t.push_back(s/n_t*i);
-			t[i] = (double)1e9* s/n_t*i;//ns*1e9=s
+			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
 		}
 		
 	if (cst==0)
@@ -203,7 +204,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 					//cout<<"i"<<i;
 					//tps in seconds, dt in nanoseconds
 					//num_dt[i]=floor(abs(tps[i]/1e9/(dt)));//nombre de dt (arbitrarily put *1e1)
-					num_dt[i]=floor(abs(1e1*tps[i]/(dt)));
+					num_dt[i]=floor(abs(tps[i]/(dt)));
 					//cout<<i<<endl<<"temps  "<<tps[i]<<endl;
 					//cout<<"num_dt  "<<num_dt[i]<<endl;
 					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
@@ -211,15 +212,13 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 			
 					for(int j(0); j<=num_dt[i]; ++j)
 					{
-
+						//cout<<"gutenTAg"<<j<<endl;
 						int idx = j;
 						if (idx >= n_t) {
 							idx = n_t - 1;
 						}
 						I[idx] += height_I[i];
-						//cout<<"gutenTAg"<<j<<endl;
-						//cout<<"I   "<<I[j]<<endl;
-						//cout<<"size I_nv_ligne"<<I_nv[i].size()<<endl<<"size I_nv colonne"<<I_nv.size()<<j<<endl;		
+						//I[j]+=height_I[i];		
 					}
 					
 				}
@@ -235,7 +234,6 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0)
 void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to n_t
 {
 	//normalising factors??
-	float normalization=1.0/n_t;
    for(int k(0); k<n_t; ++k) //fill freq vector
 	{	
 		freq[k] = 0;
@@ -248,69 +246,60 @@ void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k)
 			//cout<<"I_e"<<I[i]<<endl;
 			freq[k] += I[i] * (Re + Im);
 		}
-		cout<<"unfiltered, freq  "<<freq[k]<<endl;
-		//freq[k] *= normalization; // added normalization factor
+		cout<<"unfiltered, freq  "<<k<<freq[k]<<endl;
 	}
 	/*double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
 	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
 	int nb_dt=ceil(abs(1/(dt*cutoff)));//when not 1 anymore*/
 }
 
-
-/*void filter_(double cutoff,Float_t filter[n_t],int f[n_t],float t[n_t], double deg) //cutoff in Ghz, deg in degrees
-{
-	//static Float_t f[n_t];
-
-	for(int i(0); i<n_t; ++i)
-	{
-		f[n_t-i-1]=floor(abs(1e9*1/(t[i]+1))); //in order for f to increase t is in seconds, we want f in GHz, so *1e9
-		cout<<"f   "<<f[n_t-i-1]<<endl;
-	}
-	int j=0;
-	while ((j<n_t) and (f[j]<=cutoff)){
-		filter[f[j]]=1;
-		j+=1;
-	} //filters nothing until cutoff
+/*
+void construct_filter_(float filter[n_t], double deg)
+{	//tengo 1000 puntos de 0 a 10 GHz, el df=0.01
+	//cutoff=2GHz corresponde al punto 200 (1/5 de 1000)
+	double df=10/1000;
+	deg=deg*M_PI/180; //transformar grados a rad
+	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
+	double cruzar_x=op+cutoff; //si deg=1 => 2,017 
 	
-	int j=0;
-
-	double a=tan(deg);
-	//double b=1-a*f[cut];
-	b=1+tan(deg)*cutoff;
-	//int max=n_t-j;
-	int l=0;
-	while((j<n_t) and (l<max) and (a*l+b>=0)) {
-		filter[j]=-a*l+b;
-		j+=1;
-		l+=0;
-	}
-	
-	if(a*l+b<=0)
+	double nb_df=round(cruzar_x/df);
+	cout<<"when filter gets 0:   "<<nb_df;
+	for(int i(0); i<=200; ++i)
 	{
-		while(j<n_t) {
-			filter[j]=0;
-			j+=1;
-		}
+		filter[i]=1;
+		cout<<"filter=1   "<<i<<endl;
+	}
+	double a=-tan(deg*M_PI/180); //pendiente
+	double b=1+tan(deg*M_PI/180)*cutoff; //interseccion y
+	for(int i(201); i<202; ++i)
+	{
+		filter[i]=(a*1/(i*df)+b);
+		cout<<" cuesta  "<<i<<endl;
 	}
 
-
+	for(int i(202); i<n_t; ++i)
+	{
+		filter[i]=0;
+		cout<<" filter =0    "<<i<<endl;
+	}	
 }*/
-
 
 void construct_filter_(float filter[n_t], double deg)
 {
-	//filter=0 when f in (cut+op,inf)
-	//filter =a*l+b when f in (cut, cut+op)
-	//filter=1 when f in (0,cut)
-	double op=tan(deg)*1;
-	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))));
-	int nb_dt=ceil(abs(1/(dt*cutoff)));
+	//filter=0 when frequence f in (cut+op,infinity), time t in(0,nb_dt_0*dt)
+	//filter =a*l+b when f in (cut, cut+op), t in (nb_dt_0*dt, nb_dt*dt)
+	//filter=1 when f in (0,cut), t in (nb_dt*dt, infinity)
+
+	deg=deg*M_PI/180; //transformar grados a rad
+	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
+	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op)))); //numero de dts hasta que el filtro sea 0, cutoff =2 GHz =[1/ns]
+	int nb_dt=ceil(abs(1/(dt*cutoff))); //numero de dts hasta que empiece la cuesta del filtro
 	
 	cout <<"nb_dt  "<<nb_dt<<endl;
 
 	for(int i(0); i<=nb_dt_0; ++i)
 	{
-		filter[i]=0;
+		filter[n_t-i-1]=0;
 	}
 	
 	double a=-tan(deg*M_PI/180);
@@ -326,11 +315,11 @@ void construct_filter_(float filter[n_t], double deg)
 		//cout<<"i  "<<i<<endl;
 		//cout<<"filter    "<<(a*l+b)<<endl;
 		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
-		filter[i]=(a*1/(i*dt)+b);
+		filter[n_t-1-i]=(a*1/(i*dt)+b);
 	}
 	for(int i(nb_dt+1); i<n_t; ++i)
 	{
-		filter[i]=1;
+		filter[n_t-i]=1;
 	}
 }
 
@@ -345,24 +334,19 @@ void apply_filter(float freq[n_t], float filter[n_t])
 
 void inverse_fourier(float freq[n_t], float new_I[n_t])
 {
-	//normalising factors?? 
-	float normalization_factor = 1.0 / n_t;
-	//i is time and k frequence
-   for(int i(0); i<n_t; ++i) //fill new_I vector
+	//normalising factors??
+   for(int k(0); k<n_t; ++k) //fill freq vector
 	{	
-		new_I[i] = 0;
-		for (int k = 0; i < n_t; ++k) //integral over frequence
+		new_I[k] = 0;
+		for (int i = 0; i < n_t; ++i) //integral
 		{
 			float Re = cos(2*M_PI*k*i/n_t);
 			float Im = sin(2*M_PI*k*i/n_t);
-			new_I[i] += freq[k] * (Re + Im);
+			new_I[k] += freq[i] * (Re + Im);
 			//cout<<"filtered in time domain   "<<new_I[i]<<endl;
 		}
-		//new_I[k] *= normalization_factor;
 		cout<<"new_I   "<<new_I[k]<<endl;
-		
 	}
-
 }
 
 void tp4b(int V=500)
@@ -447,7 +431,7 @@ void tp4b(int V=500)
 	TCanvas *canv0 = new TCanvas("canv0", "E", 200, 10, 1000, 650);
 	canv0->SetGrid();
 	
-	TH2F *hpx0 = new TH2F("hpx0", "Electric", 20, 0, 300, 100, 0, 1e3);
+	TH2F *hpx0 = new TH2F("hpx0", "Electric", 20, 0, 300, 100, 0, 1e1);
 	
 	hpx0->Draw();
 	
@@ -480,7 +464,7 @@ void tp4b(int V=500)
 	canv1->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 1000);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 50);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
@@ -541,7 +525,7 @@ void tp4b(int V=500)
 	canvfilter->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 1000);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -4000, 200000);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
