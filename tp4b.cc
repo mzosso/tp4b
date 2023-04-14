@@ -18,7 +18,7 @@ double dt= (double) s/n_t; //ns
 int V_d=300; //depletion voltage
 int n_e=10; //nb electrons
 double T=298.16; //K
-double cutoff=2; //GHz
+double cutoff=20*1e-3; //GHz
 int n_f=2040; //how many points for the frequence and filter
 
 /*const vector<vector<Float_t>> vel(double n_d, float E[n], double T)
@@ -248,13 +248,33 @@ void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k)
 		}
 		cout<<"unfiltered, freq  "<<k<<freq[k]<<endl;
 	}
-	/*double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
-	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
-	int nb_dt=ceil(abs(1/(dt*cutoff)));//when not 1 anymore*/
 }
 
-/*
-void construct_filter_(float filter[n_t], double deg)
+//para que vaya con las unidades, i de 0 a 100 ns, pero no creo que funcione
+/*void I_to_frequence_2(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to 100 ns
+{
+	//normalising factors??
+   for(int k(0); k<n_t; ++k) //fill freq vector
+	{	
+		freq[k] = 0;
+		for (int i = 0; i < s; i=dt+i) //integral
+		{
+			float Re = cos(2*M_PI*k*i/s);
+			//cout<<"Re  "<<Re<<endl;
+			float Im = -sin(2*M_PI*k*i/s);
+			//cout<<"Im  "<<Im<<endl;
+			//cout<<"I_e"<<I[i]<<endl;
+			freq[k] += I[i] * (Re + Im);
+		}
+		cout<<"unfiltered, freq  "<<k<<freq[k]<<endl;
+	}
+	double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
+	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
+	int nb_dt=ceil(abs(1/(dt*cutoff)));//when not 1 anymore
+}*/
+
+//Era otra idea que no creo que funcione, pero la dejo igual
+/*void construct_filter_2(float filter[n_t], double deg)
 {	//tengo 1000 puntos de 0 a 10 GHz, el df=0.01
 	//cutoff=2GHz corresponde al punto 200 (1/5 de 1000)
 	double df=10/1000;
@@ -323,12 +343,60 @@ void construct_filter_(float filter[n_t], double deg)
 	}
 }
 
+void construct_filter_time_domain(float filter[n_t], double deg)
+{
+	//filter=0 when frequence f in (cut+op,infinity), time t in(0,nb_dt_0*dt)
+	//filter =a*l+b when f in (cut, cut+op), t in (nb_dt_0*dt, nb_dt*dt)
+	//filter=1 when f in (0,cut), t in (nb_dt*dt, infinity)
+
+	deg=deg*M_PI/180; //transformar grados a rad
+	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
+	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op)))); //numero de dts hasta que el filtro sea 0, cutoff =2 GHz =[1/ns]
+	int nb_dt=ceil(abs(1/(dt*cutoff))); //numero de dts hasta que empiece la cuesta del filtro
+	
+	cout <<"nb_dt 0 "<<nb_dt_0<<endl;
+
+	for(int i(0); i<=nb_dt_0; ++i)
+	{
+		filter[i]=0;
+	}
+	
+	double a=-tan(deg);
+	cout<<"a   "<<a<<endl;
+	double b=1+tan(deg)*cutoff;
+	//double b=1;
+	cout<<"b   "<<b<<endl;
+
+	//int l=0;
+	cout <<"filter(nb_dt_0)  "<<a*1.0/((nb_dt_0+1)*dt)+b<<endl;
+	for(int i(nb_dt_0+1); i<=nb_dt; ++i)
+	{
+		//cout<<"i  "<<i<<endl;
+		//cout<<"filter    "<<(a*l+b)<<endl;
+		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
+		filter[i]=(a*1/(i*dt)+b);
+	}
+	for(int i(nb_dt+1); i<n_t; ++i)
+	{
+		filter[i]=1;
+	}
+}
+
 void apply_filter(float freq[n_t], float filter[n_t])
 {
 	for(int i(0); i<n_t; ++i)
 	{
 		freq[i]=freq[i]*filter[i];
 		cout<<"filtered in freq domain   "<<freq[i]<<endl;
+	}
+}
+
+void apply_filter_time_domain(float I[n_t], float filter[n_t])
+{
+	for(int i(0); i<n_t; ++i)
+	{
+		I[i]=I[i]*filter[i];
+		cout<<"filtered in time domain   "<<I[i]<<endl;
 	}
 }
 
@@ -517,15 +585,15 @@ void tp4b(int V=500)
 	
 	//filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
 	
-	I_to_frequence(I_e, freq);
-	construct_filter_(filter, 1.0);
-	apply_filter(freq, filter);
-	inverse_fourier(freq, new_I);
+	//I_to_frequence(I_e, freq);
+	construct_filter_time_domain(filter, 1.0);
+	apply_filter_time_domain(I_e, filter);
+	//inverse_fourier(freq, new_I);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	/*TMultiGraph *mg = new TMultiGraph();
 	mg->SetTitle("Signals");*/
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -4000, 200000);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 6);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
@@ -539,7 +607,7 @@ void tp4b(int V=500)
 	hpxfilter->GetXaxis()->CenterTitle();
 	
 
-	TGraph *gr_filter = new TGraph (n_t, t, new_I);
+	TGraph *gr_filter = new TGraph (n_t, t, I_e);
 	gr_filter->SetMarkerStyle(20);
 	gr_filter ->SetMarkerColor(2);
 	gr_filter ->SetMarkerSize(1.0);
