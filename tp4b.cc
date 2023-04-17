@@ -10,412 +10,29 @@ using namespace std;
 	
 const int n=1000; //how many pts for d and E
 double n_d=100; //thickness, micro
-double dx=(double) n_d/n; //dx of E and d //micro
-//int V=300; //external
 int s=100; //how many ns
-int n_t=1000; //how many pts for s and I
+int n_t=2000; //how many pts for s and I
 double dt= (double) s/n_t; //ns
 int V_d=300; //depletion voltage
-int n_e=10; //nb electrons
+int n_e=100; //nb electrons
 double T=298.16; //K
-double cutoff=20*1e-3; //GHz
-int n_f=2040; //how many points for the frequence and filter
 
-/*const vector<vector<Float_t>> vel(double n_d, float E[n], double T)
-{
-	vector<double> dist(n);
-	vector<double> ini(n);
-	vector<int> i_e(n);
-	vector<int> i_h(n);
-	vector<Float_t> v_e(n);
-	vector<Float_t> v_h(n);
-	vector<vector<Float_t>> v(2, vector<Float_t>(n));
-	for(int i(0); i<n; ++i)
-	{
-		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; //a corregir
-		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron
-		i_e[i]=round(n*dist[i]/n_d); // avec d[i]=dist=n_d/n*i
-		i_h[i]=round(n*ini[i]/n_d); // ATTENTION, ROUND DONC PAS E EXACT
-		v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]])/pow((pow((1+(E[i_e[i]]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/2.57*pow(10,-2)*pow(T,0.66)));
-		v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]])/pow((pow((1+(E[i_h[i]]/1.24)*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/0.46*pow(T,0.17)));
-		v[0][i]=v_e[i];
-		v[1][i]=v_h[i];
-	}
-	
-	return v;
-}
-*/
 static Float_t vel_h_at_position_in_field(float value_of_field, double temp);
-Float_t* vel_e( float E_[n], double T)
-{
-	static Float_t v_e[n];
-	for(int i(0); i<n; ++i)
-	{	double num=1.42e9*E_[i]*pow(T,-2.42);
-		double den = pow(1.0+pow(E_[i]/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
-		v_e[i]=num/den;
-		//v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E_[i])/pow((pow((1+(E_[i]/1.01)*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66))));
-	}
-	
-	return v_e; //cm/s
-}
 
-Float_t* vel_h(float E_[n], double T)
-{
-	
-	double pot_h=0.46*pow(T, 0.17);
-	static Float_t v_h[n];
+Float_t* vel_e( float E_[n], double T);
 
-	transform(E_, E_+n, v_h, [T](float E){return vel_h_at_position_in_field(E,T);});
-	return v_h;
-}
+Float_t* vel_h(float E_[n], double T);
 
-Float_t vel_h_at_position_in_field(float value_of_field, double temp)
-{
-	double pot_h=0.46*pow(temp, 0.17);
-	double num_=1.31e8*value_of_field*pow(temp,-2.2);
-	double den_ = pow(1.0+pow(value_of_field/1.24/pow(temp,1.68),pot_h),(1/pot_h));
-		
-	return num_/den_;
-}
-
-vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
-{
-	vector<double> v_e(n_e);
-	vector<double> v_h(n_e);
-	vector<double> dist(n_e);
-	vector<int> i_e(n_e);
-	vector<int> i_h(n_e);
-	vector<double> t_e(n_e);
-	vector<double> t_h(n_e);
-	vector<vector<double>> t(2, vector<double>(n_e));
-	double pot_h=0.46*pow(T, 0.17);
-	
-	for(int i(0); i<n_e; ++i)
-	{
-
-		
-		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; // micrometre
-		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron, micrometre
-		i_e[i]=floor(abs(n*dist[i]/n_d)); // avec d[i]=dist=n_d/n*i
-		//cout<<"hello"<<i<<endl;
-		//cout<<"dist"<<dist[i]<<endl;
-		//cout<<"i_e"<<i_e[i]<<endl;
-		i_h[i]=floor(abs(n*ini[i]/n_d)); // ATTENTION, ROUND DONC PAS E EXACT
-		//the function E returns us actually a voltage, which means I have to derive it by the thickness (in micro) and then
-		//multiply by 1e4
-		//E[i_h[i]]=E[i_h[i]]/n_d*1e4;
-		//E[i_e[i]]=E[i_e[i]]/n_d*1e4;
-		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T,-2.42);
-		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
-		v_e[i]=num/den;
-		//v_e[i]=(1.42*pow(10,9)*pow(T, -2.42)*E[i_e[i]]/n_d*1e4)/pow((1+pow(E[i_e[i]]/n_d*1e4/(1.01*pow(T,1.55)),2.57*pow(10,-2))*pow(T, 0.66)),(1/(2.57*pow(10,-2)*pow(T,0.66)))); //cm /s
-		//cout<<"hola"<<i<<endl;
-		//cout<<"ini"<<ini[i]<<endl;
-		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T,-2.2);
-		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T,1.68),pot_h),(1/pot_h));
-		
-		v_h[i]=num_/den_;
-		//v_h[i]=(1.31*pow(10,8)*pow(T, -2.2)*E[i_h[i]]/n_d*1e4)/pow((1+pow(E[i_h[i]]/n_d*1e4/(1.24*pow(T,1.68)),0.46)*pow(T, 0.17)),(1/(0.46*pow(T,0.17)))); //cm/s
-		//v_e[i]=mu_e*E[i_e[i]];
-		//v_h[i]=mu_h*E[i_h[i]];
-		//t_e[i]=dist[i]/v_e[i];
-		//t_h[i]=ini[i]/v_h[i];
-		
-		t[0][i]=dist[i]*1e4/v_e[i]; //micrometre*1e4/(cm/s)=s
-		t[1][i]=ini[i]*1e4/v_h[i];
-	}
-	cout<<dist[0];
-	cout<<ini[0];
-	
-	//cout<<"t_e="<<t_e<<endl;
-	//cout<<"t_h="<<t_h<<endl;
-	
-	return t;
-}
-
-void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir définir un champ élec constant facilement
-{
-		
-	
-		
-		//This is actually the Voltage as a function of the thickness, so the electric field would be the V/d
-		double a=(double)-V_d/n_d; //pente du champ E, V/micrometre
-		for(int i(0); i<n;++i)
-		{
-			if (cst==0)
-				{E[i]=V;}
-			else
-			{
-				/*d.push_back(n_d/n*(n-i));
-				E.push_back(V/d[i]);*/
-				//d[i]= (double) n_d/n*(n-i);
-				d[i] = (double) abs(n_d/n*i); //micrometre
-				//if (V_d<=V)
-				//{
-					//double dif=(V-V_d)/n_d;//volt/micrometre
-					//E[i]=(double) 1e-4*(V_d/n_d+dif+a*d[i]/n_d);// volt/micrometre*1e4=volt/cm
-					//E[i]=(double) (a*d[i]+V)/n_d/1e4; // /n_d/1e4//en V/micro/1e4=V/cm
-					E[i]=(double) (a*d[i]+V)/n_d;
-					//cout<<"E1   "<<E[i]<<endl;
-					
-				//}
-				/*else
-				{
-					double dif=(V-V_d)/n_d;// volt/micrometre
-					E[i]=(double) abs(1e-4*(dif+2.0/n_d*V_d*(1-d[i]/double(n_d))));//I transform it to volt/cm
-					cout<<"E2   "<<E[i]<<endl;
-				}*/
-			}    
-	}
-}
+Float_t vel_h_at_position_in_field(float value_of_field, double temp);
+vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T); //ini c'est où on injecte // drift time for h and e
 
 
-void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps, bool cst=0) 
-{
-	//vector<vector<double>> I_nv(n_t,vector<double>(n_e));
-	for(int i(0); i<n_t;++i)
-		{
-			//t.push_back(s/n_t*i);
-			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
-		}
-		
-	if (cst==0)
-	{
-		TRandom *rand = new TRandom();
-		
-		
-		vector<double> r(n_t);
-		for(int i(0); i<n_t;++i)
-		{
-			//I.push_back(0);
-			r[i] = rand->Gaus(0,1);
-			I[i]=r[i];
-		}
-	}
-	else
-	{
-		//cout<<"tps"<<tps<<endl;
-		//cout<<"dt"<<dt<<endl;
-		vector<int> num_dt(n_e);
-		vector<double> height_I(n_e);
-		
-				for(int i(0); i<n_e;++i)
-				{
-					//cout<<"i"<<i;
-					//tps in seconds, dt in nanoseconds
-					//num_dt[i]=floor(abs(tps[i]/1e9/(dt)));//nombre de dt (arbitrarily put *1e1)
-					num_dt[i]=floor(abs(tps[i]/(dt)));
-					//cout<<i<<endl<<"temps  "<<tps[i]<<endl;
-					//cout<<"num_dt  "<<num_dt[i]<<endl;
-					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
-					//cout<<"height   "<<height_I[i]<<endl;
-			
-					for(int j(0); j<=num_dt[i]; ++j)
-					{
-						//cout<<"gutenTAg"<<j<<endl;
-						int idx = j;
-						if (idx >= n_t) {
-							idx = n_t - 1;
-						}
-						I[idx] += height_I[i];
-						//I[j]+=height_I[i];		
-					}
-					
-				}
-					/*for(int g(num_dt[i]); g<n_t;++g)
-					{
-						I[g]=0;
-						//cout<<"hello"<<g<<endl;
-					}*/
-					
-		}	
-		
-}
-void I_to_frequence(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to n_t
-{
-	//normalising factors??
-   for(int k(0); k<n_t; ++k) //fill freq vector
-	{	
-		freq[k] = 0;
-		for (int i = 0; i < n_t; ++i) //integral
-		{
-			float Re = cos(2*M_PI*k*i/n_t);
-			//cout<<"Re  "<<Re<<endl;
-			float Im = -sin(2*M_PI*k*i/n_t);
-			//cout<<"Im  "<<Im<<endl;
-			//cout<<"I_e"<<I[i]<<endl;
-			freq[k] += I[i] * (Re + Im);
-		}
-		cout<<"unfiltered, freq  "<<k<<freq[k]<<endl;
-	}
-}
+void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
 
-//para que vaya con las unidades, i de 0 a 100 ns, pero no creo que funcione
-/*void I_to_frequence_2(float I[n_t], float freq[n_t]) //∫f(x)e(-i2 pi k x)dx=f(k), x runs from 0 to 100 ns
-{
-	//normalising factors??
-   for(int k(0); k<n_t; ++k) //fill freq vector
-	{	
-		freq[k] = 0;
-		for (int i = 0; i < s; i=dt+i) //integral
-		{
-			float Re = cos(2*M_PI*k*i/s);
-			//cout<<"Re  "<<Re<<endl;
-			float Im = -sin(2*M_PI*k*i/s);
-			//cout<<"Im  "<<Im<<endl;
-			//cout<<"I_e"<<I[i]<<endl;
-			freq[k] += I[i] * (Re + Im);
-		}
-		cout<<"unfiltered, freq  "<<k<<freq[k]<<endl;
-	}
-	double op=tan(deg*M_PI/180)*1;//tan takes in radians so transform deg to rad
-	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op))))+1; //when filter=0
-	int nb_dt=ceil(abs(1/(dt*cutoff)));//when not 1 anymore
-}*/
+void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
-//Era otra idea que no creo que funcione, pero la dejo igual
-/*void construct_filter_2(float filter[n_t], double deg)
-{	//tengo 1000 puntos de 0 a 10 GHz, el df=0.01
-	//cutoff=2GHz corresponde al punto 200 (1/5 de 1000)
-	double df=10/1000;
-	deg=deg*M_PI/180; //transformar grados a rad
-	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
-	double cruzar_x=op+cutoff; //si deg=1 => 2,017 
-	
-	double nb_df=round(cruzar_x/df);
-	cout<<"when filter gets 0:   "<<nb_df;
-	for(int i(0); i<=200; ++i)
-	{
-		filter[i]=1;
-		cout<<"filter=1   "<<i<<endl;
-	}
-	double a=-tan(deg*M_PI/180); //pendiente
-	double b=1+tan(deg*M_PI/180)*cutoff; //interseccion y
-	for(int i(201); i<202; ++i)
-	{
-		filter[i]=(a*1/(i*df)+b);
-		cout<<" cuesta  "<<i<<endl;
-	}
+void apply_filter_time_domain(float I[n_t]);
 
-	for(int i(202); i<n_t; ++i)
-	{
-		filter[i]=0;
-		cout<<" filter =0    "<<i<<endl;
-	}	
-}*/
-
-void construct_filter_(float filter[n_t], double deg)
-{
-	//filter=0 when frequence f in (cut+op,infinity), time t in(0,nb_dt_0*dt)
-	//filter =a*l+b when f in (cut, cut+op), t in (nb_dt_0*dt, nb_dt*dt)
-	//filter=1 when f in (0,cut), t in (nb_dt*dt, infinity)
-
-	deg=deg*M_PI/180; //transformar grados a rad
-	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
-	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op)))); //numero de dts hasta que el filtro sea 0, cutoff =2 GHz =[1/ns]
-	int nb_dt=ceil(abs(1/(dt*cutoff))); //numero de dts hasta que empiece la cuesta del filtro
-	
-	cout <<"nb_dt  "<<nb_dt<<endl;
-
-	for(int i(0); i<=nb_dt_0; ++i)
-	{
-		filter[n_t-i-1]=0;
-	}
-	
-	double a=-tan(deg*M_PI/180);
-	cout<<"a   "<<a<<endl;
-	double b=1+tan(deg*M_PI/180)*cutoff;
-	//double b=1;
-	cout<<"b   "<<b<<endl;
-
-	//int l=0;
-	cout <<"filter(nb_dt_0)  "<<a*1.0/((nb_dt_0+1)*dt)+b<<endl;
-	for(int i(nb_dt_0+1); i<=nb_dt; ++i)
-	{
-		//cout<<"i  "<<i<<endl;
-		//cout<<"filter    "<<(a*l+b)<<endl;
-		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
-		filter[n_t-1-i]=(a*1/(i*dt)+b);
-	}
-	for(int i(nb_dt+1); i<n_t; ++i)
-	{
-		filter[n_t-i]=1;
-	}
-}
-
-void construct_filter_time_domain(float filter[n_t], double deg)
-{
-	//filter=0 when frequence f in (cut+op,infinity), time t in(0,nb_dt_0*dt)
-	//filter =a*l+b when f in (cut, cut+op), t in (nb_dt_0*dt, nb_dt*dt)
-	//filter=1 when f in (0,cut), t in (nb_dt*dt, infinity)
-
-	deg=deg*M_PI/180; //transformar grados a rad
-	double op=tan(deg)*1; //cateto opuesto, 1 es la altura del filtro 
-	int nb_dt_0=ceil(abs(1/(dt*(cutoff+op)))); //numero de dts hasta que el filtro sea 0, cutoff =2 GHz =[1/ns]
-	int nb_dt=ceil(abs(1/(dt*cutoff))); //numero de dts hasta que empiece la cuesta del filtro
-	
-	cout <<"nb_dt 0 "<<nb_dt_0<<endl;
-
-	for(int i(0); i<=nb_dt_0; ++i)
-	{
-		filter[i]=0;
-	}
-	
-	double a=-tan(deg);
-	cout<<"a   "<<a<<endl;
-	double b=1+tan(deg)*cutoff;
-	//double b=1;
-	cout<<"b   "<<b<<endl;
-
-	//int l=0;
-	cout <<"filter(nb_dt_0)  "<<a*1.0/((nb_dt_0+1)*dt)+b<<endl;
-	for(int i(nb_dt_0+1); i<=nb_dt; ++i)
-	{
-		//cout<<"i  "<<i<<endl;
-		//cout<<"filter    "<<(a*l+b)<<endl;
-		cout<<"filter    "<<(a*1.0/(i*dt)+b)<<endl;
-		filter[i]=(a*1/(i*dt)+b);
-	}
-	for(int i(nb_dt+1); i<n_t; ++i)
-	{
-		filter[i]=1;
-	}
-}
-
-void apply_filter(float freq[n_t], float filter[n_t])
-{
-	for(int i(0); i<n_t; ++i)
-	{
-		freq[i]=freq[i]*filter[i];
-		cout<<"filtered in freq domain   "<<freq[i]<<endl;
-	}
-}
-
-void apply_filter_time_domain(float I[n_t], float filter[n_t])
-{
-	for(int i(0); i<n_t; ++i)
-	{
-		I[i]=I[i]*filter[i];
-		cout<<"filtered in time domain   "<<I[i]<<endl;
-	}
-}
-
-void inverse_fourier(float freq[n_t], float new_I[n_t])
-{
-	//normalising factors??
-   for(int k(0); k<n_t; ++k) //fill freq vector
-	{	
-		new_I[k] = 0;
-		for (int i = 0; i < n_t; ++i) //integral
-		{
-			float Re = cos(2*M_PI*k*i/n_t);
-			float Im = sin(2*M_PI*k*i/n_t);
-			new_I[k] += freq[i] * (Re + Im);
-			//cout<<"filtered in time domain   "<<new_I[i]<<endl;
-		}
-		cout<<"new_I   "<<new_I[k]<<endl;
-	}
-}
 
 void tp4b(int V=500)
 {
@@ -430,14 +47,9 @@ void tp4b(int V=500)
     const double step = (end - start) / (N - 1);
     for (int i = 0; i < N; i++) {
         E_[i] = pow(10, start + i * step);
-		//cout<<"E_  "<<E_[i]<<endl;
+		
     }
-	/*vector<double> E(n);
-	vector<double> d(n);
-	vector<double> t(n_t);
-	vector<double> I(n_t);*/
-	/*float v_e[n];
-	float v_h[n];*/
+
 	float E[n];
 	float d[n];
 	float t[n_t];
@@ -445,9 +57,7 @@ void tp4b(int V=500)
 	float I_h[n_t];
 	float I_tot[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
-	Float_t filter[n_t];
-	Float_t freq[n_t];
-	Float_t new_I[n_t];
+	
 
 	for(int i(0); i<n_t; ++i)
 	{
@@ -455,9 +65,6 @@ void tp4b(int V=500)
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
-		filter[i]=0;
-		freq[i]=0;
-		new_I[i]=0;
 	}
 	for(int k(0); k<n; ++k)
 	{
@@ -476,14 +83,14 @@ void tp4b(int V=500)
 	//double mu_h=450/pow(10,-4);
 	vector<vector<double>> temps=tps(ini, n_d, E,T);
 
-	fct_I(I_e, t, dt, temps[0], 1);
-	fct_I(I_h, t, dt, temps[1], 1);
+	fct_I(I_e, t, dt, temps[0]);
+	fct_I(I_h, t, dt, temps[1]);
 	
-	/*for(int i(0); i<n_t;++i)
+	for(int i(0); i<n_t;++i)
 	{
 		I_tot[i]=I_h[i]+I_e[i];
-		cout<<"I_tot   "<<I_tot[i]<<endl;
-	}*/
+		
+	}
 	
 	while (gPad !=0) gPad ->Close();
 	
@@ -503,7 +110,7 @@ void tp4b(int V=500)
 	
 	hpx0->Draw();
 	
-	hpx0->GetYaxis()->SetTitle("U [V]");
+	hpx0->GetYaxis()->SetTitle("E [V/micro m]");
 	
 	
 	hpx0->GetYaxis()->SetLabelSize(0.05);
@@ -511,7 +118,7 @@ void tp4b(int V=500)
 	hpx0->GetYaxis()->SetTitleSize(0.05);
 	hpx0->GetXaxis()->SetTitleSize(0.05);
 	hpx0->GetXaxis()->SetNoExponent();
-	hpx0->SetTitle("Voltage, U vs thickness");
+	hpx0->SetTitle("Electric field, E vs thickness");
 	hpx0->GetYaxis()->CenterTitle();
 	hpx0->GetXaxis()->SetTitle("d [micro m]");
 	hpx0->GetXaxis()->CenterTitle();
@@ -530,9 +137,7 @@ void tp4b(int V=500)
 	
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
-	/*TMultiGraph *mg = new TMultiGraph();
-	mg->SetTitle("Signals");*/
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 50);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 70);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
@@ -583,17 +188,12 @@ void tp4b(int V=500)
 	gr_I_tot->Draw("L");
 	legend->Draw();
 	
-	//filter_(cutoff, &filter[n_t], &f[n_t], &t[n_t],1.0);
-	
-	//I_to_frequence(I_e, freq);
-	construct_filter_time_domain(filter, 1.0);
-	apply_filter_time_domain(I_e, filter);
-	//inverse_fourier(freq, new_I);
+
+
+	apply_filter_time_domain(I_tot);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
-	/*TMultiGraph *mg = new TMultiGraph();
-	mg->SetTitle("Signals");*/
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 6);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 36);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
@@ -601,27 +201,26 @@ void tp4b(int V=500)
 	hpxfilter->GetYaxis()->SetTitleSize(0.05);
 	hpxfilter->GetXaxis()->SetTitleSize(0.05);
 	hpxfilter->GetXaxis()->SetNoExponent();
-	hpxfilter->SetTitle("I, Current vs time");
+	hpxfilter->SetTitle("I_{tot}, Current vs time filtered");
 	hpxfilter->GetYaxis()->CenterTitle();
 	hpxfilter->GetXaxis()->SetTitle("t [ns]");
 	hpxfilter->GetXaxis()->CenterTitle();
 	
 
-	TGraph *gr_filter = new TGraph (n_t, t, I_e);
+	TGraph *gr_filter = new TGraph (n_t, t, I_tot);
 	gr_filter->SetMarkerStyle(20);
 	gr_filter ->SetMarkerColor(2);
 	gr_filter ->SetMarkerSize(1.0);
 	gr_filter ->SetLineWidth(2);
 	gr_filter ->SetLineColor(2);
 	
+	gr_filter->Draw("L");
 	
+	cout<<n_t<<endl;
 
 
 	Float_t* ve=vel_e(E_, 300);
-	/*for(int j(0); j<n; ++j)
-	{
-		cout<<"ve "<<j<< ":  "<<ve[j]<<endl;
-	}*/
+	
 	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
     TH2F *hpx2 = new TH2F("hpx2", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
 	canvas2->SetGrid();
@@ -652,22 +251,6 @@ void tp4b(int V=500)
 	
 
 	Float_t* vh=vel_h(E_, 300);
-	/*TCanvas *canvas3 = new TCanvas("canvas3", "Hole velocity vs E", 200, 10, 1000, 650);
-    TH2F *hpx3 = new TH2F("hpx3", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
-	
-	hpx3->Draw();
-	hpx3->GetYaxis()->SetTitle("vel");
-	hpx3->GetYaxis()->SetLabelSize(0.05);
-	hpx3->GetXaxis()->SetLabelSize(0.05);
-	hpx3->GetYaxis()->SetTitleSize(0.05);
-	hpx3->GetXaxis()->SetTitleSize(0.05);
-	hpx3->GetXaxis()->SetNoExponent();
-	hpx3->SetTitle("vel_h, v vs E");
-	hpx3->GetYaxis()->CenterTitle();
-	hpx3->GetXaxis()->SetTitle("E");
-	hpx3->GetXaxis()->CenterTitle();
-	gPad->SetLogx();
-	gPad->SetLogy();*/
 	
 	TGraph *graph_Velh = new TGraph(n, E_, vh);
     graph_Velh->SetTitle("Hole velocity vs E");
@@ -688,8 +271,145 @@ void tp4b(int V=500)
 	graph_Vel->Draw("L");
 	graph_Velh->Draw("L");
 	legend1->Draw();
+}
+
+void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir définir un champ élec constant facilement
+{
+		
+		double a=(double)-V_d/n_d; //pente du champ E, V/micrometre
+		for(int i(0); i<n;++i)
+		{
+			if (cst==0)
+				{E[i]=V;}
+			else
+			{
+				d[i] = (double) abs(n_d/n*i); //micrometre
+				E[i]=(double) (a*d[i]+V)/n_d; // V/micrometre
+			}    
+		}
+}
+
+
+Float_t* vel_e( float E_[n], double T)
+{
+	static Float_t v_e[n];
+	for(int i(0); i<n; ++i)
+	{	double num=1.42e9*E_[i]*pow(T,-2.42);
+		double den = pow(1.0+pow(E_[i]/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		v_e[i]=num/den;
+	}
 	
-	//mg->Add(gr_I_h);
-	//mg->Add(gr_I_e);	
-	//mg->Draw("APLC");
+	return v_e; //cm/s
+}
+
+Float_t* vel_h(float E_[n], double T)
+{
+	
+	double pot_h=0.46*pow(T, 0.17);
+	static Float_t v_h[n];
+
+	transform(E_, E_+n, v_h, [T](float E){return vel_h_at_position_in_field(E,T);});
+	return v_h;
+}
+
+Float_t vel_h_at_position_in_field(float value_of_field, double temp)
+{
+	double pot_h=0.46*pow(temp, 0.17);
+	double num_=1.31e8*value_of_field*pow(temp,-2.2);
+	double den_ = pow(1.0+pow(value_of_field/1.24/pow(temp,1.68),pot_h),(1/pot_h));
+		
+	return num_/den_;
+}
+
+vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
+{
+	vector<double> v_e(n_e);
+	vector<double> v_h(n_e);
+	vector<double> dist(n_e);
+	vector<int> i_e(n_e);
+	vector<int> i_h(n_e);
+	vector<double> t_e(n_e);
+	vector<double> t_h(n_e);
+	vector<vector<double>> t(2, vector<double>(n_e));
+	double pot_h=0.46*pow(T, 0.17);
+	
+	for(int i(0); i<n_e; ++i)
+	{
+
+		
+		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; // micrometre
+		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron, micrometre
+		i_e[i]=floor(abs(n*dist[i]/n_d)); // avec d[i]=dist=n_d/n*i
+
+		i_h[i]=floor(abs(n*ini[i]/n_d)); // ATTENTION, ROUND DONC PAS E EXACT
+		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T,-2.42);
+		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		v_e[i]=num/den;
+
+		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T,-2.2);
+		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T,1.68),pot_h),(1/pot_h));
+		
+		v_h[i]=num_/den_;
+	
+		//v_e[i]=mu_e*E[i_e[i]];
+		//v_h[i]=mu_h*E[i_h[i]];
+		//t_e[i]=dist[i]/v_e[i];
+		//t_h[i]=ini[i]/v_h[i];
+		
+		t[0][i]=dist[i]*1e4/v_e[i]; //micrometre*1e4/(cm/s)=s
+		t[1][i]=ini[i]*1e4/v_h[i];
+	}
+	cout<<dist[0];
+	cout<<ini[0];
+	
+	
+	return t;
+}
+
+void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps) 
+{
+	for(int i(0); i<n_t;++i)
+		{
+			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
+		}
+		TRandom *rand = new TRandom();
+		
+		
+		vector<double> r(n_t);
+		vector<int> num_dt(n_e);
+		vector<double> height_I(n_e);
+		
+				for(int i(0); i<n_e;++i)
+				{
+					r[i] = rand->Gaus(0,1);
+					I[i]=r[i];
+					//tps in seconds, dt in nanoseconds
+					num_dt[i]=floor(abs(tps[i]/(dt)));
+					
+					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
+			
+					for(int j(20); j<=num_dt[i]; ++j)
+					{
+						
+						int idx = j;
+						if (idx >= n_t) 
+						{
+							idx = n_t - 1;
+						}
+						I[idx] += height_I[i];
+						
+					}
+					
+				}		
+}	
+
+void apply_filter_time_domain(float I[n_t])
+{
+	for(int i(1); i<n_t; ++i)
+	{
+		I[i] = I[i-1] + 0.1 * (I[i] - I[i-1]); // Esteban: Filtro RC, el valor 0.1 dependera de la capacidad de nuestro detector, ver: https://en.wikipedia.org/wiki/Low-pass_filter
+		// en nuestro caso: dt = 50 ps, R = 50 ohm y C = 10 pF (por ejemplo)
+		// nos da una frecuencia de corte de 300 MHz, esto cambia con la C del detector.
+		//I[i]=I[i]*filter[i];
+	}
 }
