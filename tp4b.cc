@@ -9,29 +9,37 @@ using namespace std;
 
 	
 const int n=1000; //how many pts for d and E
+double area=1e5; //m^2
 double n_d=100; //thickness, micro
+double dx= (double) n_d/n;
 int s=100; //how many ns
 int n_t=2000; //how many pts for s and I
 double dt= (double) s/n_t; //ns
 int V_d=300; //depletion voltage
 int n_e=100; //nb electrons
 double T=298.16; //K
+double mu_e=1350; //cm^2/(Vs)
+double mu_h=480; //cm^2/(Vs)
+double k_B=8.62e-5; //eV/K
 
 static Float_t vel_h_at_position_in_field(float value_of_field, double temp);
 
-Float_t* vel_e( float E_[n], double T);
+Float_t* vel_e( float E_[n], double T_);
+double diffusion_coefficient(double T_, double mu, double k_B);
+Float_t diffusion_velocity(double mu, int i, Float_t E[n]);
 
-Float_t* vel_h(float E_[n], double T);
+Float_t* vel_h(float E_[n], double T_);
 
 Float_t vel_h_at_position_in_field(float value_of_field, double temp);
-vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T); //ini c'est où on injecte // drift time for h and e
+vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_); //ini c'est où on injecte // drift time for h and e
 
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
-
+Float_t get_gradient(Float_t E[n], int i);
+void add_noise(Float_t I[n_t], double std);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
-void apply_filter_time_domain(float I[n_t]);
+void apply_filter_time_domain(float I[n_t], double n_d);
 
 
 void tp4b(int V=500)
@@ -56,6 +64,7 @@ void tp4b(int V=500)
 	float I_e[n_t];
 	float I_h[n_t];
 	float I_tot[n_t];
+	float I_tot1[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
 	
 
@@ -65,6 +74,7 @@ void tp4b(int V=500)
 		I_h[i]=0;
 		I_e[i]=0;
 		I_tot[i]=0;
+		I_tot1[i]=0;
 	}
 	for(int k(0); k<n; ++k)
 	{
@@ -89,6 +99,7 @@ void tp4b(int V=500)
 	for(int i(0); i<n_t;++i)
 	{
 		I_tot[i]=I_h[i]+I_e[i];
+		I_tot1[i]=I_h[i]+I_e[i];
 		
 	}
 	
@@ -189,24 +200,23 @@ void tp4b(int V=500)
 	legend->Draw();
 	
 
-
-	apply_filter_time_domain(I_tot);
-	TCanvas *canvfilter = new TCanvas("canvfilter", "I", 200, 10, 1000, 650);
+	///Noise added after filter
+	apply_filter_time_domain(I_tot, n_d);
+	add_noise(I_tot, 1.0);
+	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 36);
 	hpxfilter->Draw();
-	hpxfilter->GetYaxis()->SetTitle("I");
+	hpxfilter->GetYaxis()->SetTitle("I ");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
 	hpxfilter->GetXaxis()->SetLabelSize(0.05);
 	hpxfilter->GetYaxis()->SetTitleSize(0.05);
 	hpxfilter->GetXaxis()->SetTitleSize(0.05);
 	hpxfilter->GetXaxis()->SetNoExponent();
-	hpxfilter->SetTitle("I_{tot}, Current vs time filtered");
+	hpxfilter->SetTitle("I_{tot}, Current vs time, filtered");
 	hpxfilter->GetYaxis()->CenterTitle();
 	hpxfilter->GetXaxis()->SetTitle("t [ns]");
 	hpxfilter->GetXaxis()->CenterTitle();
-	
-
 	TGraph *gr_filter = new TGraph (n_t, t, I_tot);
 	gr_filter->SetMarkerStyle(20);
 	gr_filter ->SetMarkerColor(2);
@@ -215,11 +225,47 @@ void tp4b(int V=500)
 	gr_filter ->SetLineColor(2);
 	
 	gr_filter->Draw("L");
+
+///Noise added before filter
+	add_noise(I_tot1, 1.0);
+	apply_filter_time_domain(I_tot1, n_d);
+	TCanvas *canvfilter_ = new TCanvas("canvfilter_", "I, noise added before filtering", 200, 10, 1000, 650);
+	canvfilter_->SetGrid();
+	TH2F *hpxfilter_ = new TH2F("hpxfilter_", "I", 20, 0, 1e8*s, 100, -1, 36);
+	hpxfilter_->Draw();
+	hpxfilter_->GetYaxis()->SetTitle("I ");
+	hpxfilter_->GetYaxis()->SetLabelSize(0.05);
+	hpxfilter_->GetXaxis()->SetLabelSize(0.05);
+	hpxfilter_->GetYaxis()->SetTitleSize(0.05);
+	hpxfilter_->GetXaxis()->SetTitleSize(0.05);
+	hpxfilter_->GetXaxis()->SetNoExponent();
+	hpxfilter_->SetTitle("I_{tot}, Current vs time, filtered");
+	hpxfilter_->GetYaxis()->CenterTitle();
+	hpxfilter_->GetXaxis()->SetTitle("t [ns]");
+	hpxfilter_->GetXaxis()->CenterTitle();
+
+	TGraph *gr_filter_ = new TGraph (n_t, t, I_tot1);
+	gr_filter_->SetMarkerStyle(20);
+	gr_filter_ ->SetMarkerColor(2);
+	gr_filter_ ->SetMarkerSize(1.0);
+	gr_filter_ ->SetLineWidth(2);
+	gr_filter_ ->SetLineColor(2);
 	
-	cout<<n_t<<endl;
+	gr_filter_->Draw("L");
 
-
-	Float_t* ve=vel_e(E_, 300);
+	
+	vector<double> T_={6.0,45.0,110.0,200.0,300.0,430.0};
+	size_t nt=T_.size();
+	vector<Float_t*> ve(nt);
+	vector<Float_t*> vh(nt);
+	for(int i;i<nt;++i)
+	{
+		cout<<T_[i]<<endl;
+		ve[i]=vel_e(E_, T_[i]);
+		vh[i]=vel_h(E_, T_[i]);
+	}
+	Float_t* ve_=vel_e(E_, 100);
+	Float_t* vh_=vel_h(E_, 100);
 	
 	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
     TH2F *hpx2 = new TH2F("hpx2", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
@@ -238,7 +284,7 @@ void tp4b(int V=500)
 	gPad->SetLogx();
 	gPad->SetLogy();
 	
-	TGraph *graph_Vel = new TGraph(n, E_, ve);
+	TGraph *graph_Vel = new TGraph(n, E_, ve_);
     graph_Vel->SetTitle("Electron velocity vs E");
     graph_Vel->GetXaxis()->SetTitle("E");
     graph_Vel->GetYaxis()->SetTitle("v [cm/s]");
@@ -247,12 +293,8 @@ void tp4b(int V=500)
 	graph_Vel ->SetMarkerSize(1.0);
 	graph_Vel ->SetLineWidth(2);
 	graph_Vel ->SetLineColor(2);
-	
-	
 
-	Float_t* vh=vel_h(E_, 300);
-	
-	TGraph *graph_Velh = new TGraph(n, E_, vh);
+	TGraph *graph_Velh = new TGraph(n, E_, vh_);
     graph_Velh->SetTitle("Hole velocity vs E");
     graph_Velh->GetXaxis()->SetTitle("E");
     graph_Velh->GetYaxis()->SetTitle("v [cm/s]");
@@ -271,6 +313,78 @@ void tp4b(int V=500)
 	graph_Vel->Draw("L");
 	graph_Velh->Draw("L");
 	legend1->Draw();
+
+
+	/*// plot different temperatures 
+	
+    TH2F *hpx_T = new TH2F("hpx_T", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
+	
+	hpx_T->Draw();
+	hpx_T->GetYaxis()->SetTitle("v [cm/s]");
+	hpx_T->GetYaxis()->SetLabelSize(0.05);
+	hpx_T->GetXaxis()->SetLabelSize(0.05);
+	hpx_T->GetYaxis()->SetTitleSize(0.05);
+	hpx_T->GetXaxis()->SetTitleSize(0.05);
+	hpx_T->GetXaxis()->SetNoExponent();
+	hpx_T->SetTitle("Drift velocity, v vs E");
+	hpx_T->GetYaxis()->CenterTitle();
+	hpx_T->GetXaxis()->SetTitle("E [V/cm]");
+	hpx_T->GetXaxis()->CenterTitle();
+	gPad->SetLogx();
+	gPad->SetLogy();
+
+	//vector<TGraph*> graph_T(T_.size());
+
+	auto legend2 = new TLegend(); //0.2,0.3,0.2,0.3
+	vector<TString> mylgd2 ={"T=6K","T=45K", "T=110K", "T=200K", "T=300K", "T=430K"};
+	vector<int> colors = {kRed, kBlue, kGreen, kMagenta, kCyan, kOrange};
+	//vector<double> color={1,2,3,4,6,9};
+	
+	vector<TGraph*> graphs;
+for(int i = 0; i < T_.size(); ++i)
+{
+    auto graph_T = new TGraph(n, E_, ve[i]);
+    graph_T->SetTitle("Electron velocity vs E");
+    graph_T->GetXaxis()->SetTitle("E");
+    graph_T->GetYaxis()->SetTitle("v [cm/s]");
+    graph_T->SetLineWidth(2);
+    graph_T->SetLineColor(colors[i]);
+
+    legend2->AddEntry(graph_T, mylgd2[i], "l");
+    graphs.push_back(graph_T);
+}
+
+TCanvas *canvas_T = new TCanvas("canvas", "canvas", 800, 600);
+canvas_T->SetGrid();
+canvas_T->cd();
+graphs[0]->Draw("ALP");
+for(int i = 1; i < 2; ++i)
+{
+    graphs[i]->Draw("LSAME");
+}
+
+legend2->Draw();
+canvas_T->Update();
+}*/
+
+//plot histogram noise
+Float_t I_noise[n_t];
+for(int i(0); i<n_t; ++i)
+{
+	I_noise[i]=0;
+}
+	add_noise(I_noise, 1.0);
+	
+	TH1F *hist = new TH1F("hist", "I_noise Histogram", 100, -10, 10);
+
+		for(int i(0); i<n_t; ++i)
+		{
+			hist->Fill(I_noise[i]);
+		}
+	hist->GetXaxis()->SetLogx(0);
+hist->Draw();
+
+
 }
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir définir un champ élec constant facilement
@@ -280,7 +394,7 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 		for(int i(0); i<n;++i)
 		{
 			if (cst==0)
-				{E[i]=V;}
+				{E[i]=V/n_d;}
 			else
 			{
 				d[i] = (double) abs(n_d/n*i); //micrometre
@@ -288,27 +402,39 @@ void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir dé
 			}    
 		}
 }
-
-
-Float_t* vel_e( float E_[n], double T)
+double diffusion_coefficient(double T_, double mu, double k_B) 
+{
+    return k_B * T_ * mu;
+}
+Float_t get_gradient(Float_t E[n], int i)
+{
+	return (E[i+1]-E[i])/dx;
+}
+Float_t diffusion_velocity(double mu, int i, Float_t E[n], double T_)
+{
+	return diffusion_coefficient(T_,mu,k_B) / mu * get_gradient(E, i); 
+}
+	
+Float_t* vel_e( float E_[n], double T_)
 {
 	static Float_t v_e[n];
 	for(int i(0); i<n; ++i)
-	{	double num=1.42e9*E_[i]*pow(T,-2.42);
-		double den = pow(1.0+pow(E_[i]/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
-		v_e[i]=num/den;
-	}
-	
+	{	double num=1.42e9*E_[i]*pow(T_,-2.42);
+		double den = pow(1.0+pow(E_[i]/1.01/pow(T_,1.55),(2.57e-2*pow(T_,0.66))),(1/(2.57e-2*pow(T_,0.66))));
+		v_e[i]=num/den;//without diffusion
+		//v_e[i]+=diffusion_velocity(mu_e, i, E_); //with diffusion
+
+    }
 	return v_e; //cm/s
 }
 
-Float_t* vel_h(float E_[n], double T)
+Float_t* vel_h(float E_[n], double T_)
 {
 	
-	double pot_h=0.46*pow(T, 0.17);
+	double pot_h=0.46*pow(T_, 0.17);
 	static Float_t v_h[n];
 
-	transform(E_, E_+n, v_h, [T](float E){return vel_h_at_position_in_field(E,T);});
+	transform(E_, E_+n, v_h, [T_](float E){return vel_h_at_position_in_field(E,T_);});
 	return v_h;
 }
 
@@ -321,7 +447,7 @@ Float_t vel_h_at_position_in_field(float value_of_field, double temp)
 	return num_/den_;
 }
 
-vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //ini c'est où on injecte // drift time for h and e
+vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_) //ini c'est où on injecte // drift time for h and e
 {
 	vector<double> v_e(n_e);
 	vector<double> v_h(n_e);
@@ -331,23 +457,21 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //in
 	vector<double> t_e(n_e);
 	vector<double> t_h(n_e);
 	vector<vector<double>> t(2, vector<double>(n_e));
-	double pot_h=0.46*pow(T, 0.17);
+	double pot_h=0.46*pow(T_, 0.17);
 	
 	for(int i(0); i<n_e; ++i)
 	{
-
-		
 		ini[i]=(double) n_d/n_e*i+n_d/n_e*0.5; // micrometre
 		dist[i]=n_d-ini[i]; //distance à parcourir pour l'électron, micrometre
 		i_e[i]=floor(abs(n*dist[i]/n_d)); // avec d[i]=dist=n_d/n*i
 
 		i_h[i]=floor(abs(n*ini[i]/n_d)); // ATTENTION, ROUND DONC PAS E EXACT
-		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T,-2.42);
-		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T,0.66))),(1/(2.57e-2*pow(T,0.66))));
+		double num=1.42e9*E[i_e[i]]/n_d*1e4*pow(T_,-2.42);
+		double den = pow(1.0+pow(E[i_e[i]]/n_d*1e4/1.01/pow(T,1.55),(2.57e-2*pow(T_,0.66))),(1/(2.57e-2*pow(T_,0.66))));
 		v_e[i]=num/den;
 
-		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T,-2.2);
-		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T,1.68),pot_h),(1/pot_h));
+		double num_=1.31e8*E[i_h[i]]/n_d*1e4*pow(T_,-2.2);
+		double den_ = pow(1.0+pow(E[i_h[i]]/n_d*1e4/1.24/pow(T_,1.68),pot_h),(1/pot_h));
 		
 		v_h[i]=num_/den_;
 	
@@ -359,30 +483,33 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T) //in
 		t[0][i]=dist[i]*1e4/v_e[i]; //micrometre*1e4/(cm/s)=s
 		t[1][i]=ini[i]*1e4/v_h[i];
 	}
-	cout<<dist[0];
-	cout<<ini[0];
-	
-	
 	return t;
 }
-
+void add_noise(Float_t I[n_t], double std)
+{
+	TRandom *rand = new TRandom();
+	vector<double> r(n_t);
+		for(int k(0); k<n_t; ++k)
+		{
+			r[k] = rand->Gaus(0,std);
+			I[k]+=r[k];
+		}
+}
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps) 
 {
 	for(int i(0); i<n_t;++i)
 		{
 			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
 		}
-		TRandom *rand = new TRandom();
 		
 		
-		vector<double> r(n_t);
+		
+		
 		vector<int> num_dt(n_e);
 		vector<double> height_I(n_e);
 		
 				for(int i(0); i<n_e;++i)
 				{
-					r[i] = rand->Gaus(0,1);
-					I[i]=r[i];
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					
@@ -403,11 +530,16 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 				}		
 }	
 
-void apply_filter_time_domain(float I[n_t])
+void apply_filter_time_domain(float I[n_t], double n_d)
 {
+	double R=50;
+	double C=(double) area/(n_d*pow(10,-6))*8.854e-12; 
+	cout<<C<<endl;
+	double alpha=dt / (R*C + dt);
+	
 	for(int i(1); i<n_t; ++i)
 	{
-		I[i] = I[i-1] + 0.1 * (I[i] - I[i-1]); // Esteban: Filtro RC, el valor 0.1 dependera de la capacidad de nuestro detector, ver: https://en.wikipedia.org/wiki/Low-pass_filter
+		I[i] = I[i-1] + alpha * (I[i] - I[i-1]); // Esteban: Filtro RC, el valor 0.1 dependera de la capacidad de nuestro detector, ver: https://en.wikipedia.org/wiki/Low-pass_filter
 		// en nuestro caso: dt = 50 ps, R = 50 ohm y C = 10 pF (por ejemplo)
 		// nos da una frecuencia de corte de 300 MHz, esto cambia con la C del detector.
 		//I[i]=I[i]*filter[i];
