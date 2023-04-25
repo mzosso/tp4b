@@ -4,8 +4,8 @@
 #include <fstream>
 #include <vector>
 #include <typeinfo>
+#include <TRandom.h>
 using namespace std;
-
 
 	
 const int n=1000; //how many pts for d and E
@@ -13,7 +13,8 @@ double area=1e5; //m^2
 double n_d=100; //thickness, micro
 double dx= (double) n_d/n;
 int s=100; //how many ns
-int n_t=2000; //how many pts for s and I
+TRandom *rand_nb = new TRandom();
+constexpr int n_t=2000; //how many pts for s and I
 double dt= (double) s/n_t; //ns
 int V_d=300; //depletion voltage
 int n_e=100; //nb electrons
@@ -21,8 +22,14 @@ double T=298.16; //K
 double mu_e=1350; //cm^2/(Vs)
 double mu_h=480; //cm^2/(Vs)
 double k_B=8.62e-5; //eV/K
+int nb_elecs=100;
+double threshold=30;
+double standarddev=10.0;
 
 static Float_t vel_h_at_position_in_field(float value_of_field, double temp);
+
+Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps);
+Float_t* create_vect_float();
 
 Float_t* vel_e( float E_[n], double T_);
 double diffusion_coefficient(double T_, double mu, double k_B);
@@ -36,6 +43,7 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_); //
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
 Float_t get_gradient(Float_t E[n], int i);
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold);
 void add_noise(Float_t I[n_t], double std);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
@@ -66,7 +74,12 @@ void tp4b(int V=500)
 	float I_tot[n_t];
 	float I_tot1[n_t];
 	float ini[n_e]; //vecteur d'elec pour pouvoir les placer dans le detecteur
-	
+	//vector<array<float, n_t>> I_elecs(nb_elecs);
+	vector<Float_t*> I_elecs(nb_elecs);
+	//vector<array<Float_t, n_t>> I_holes(nb_elecs);
+	vector<Float_t*> I_holes(nb_elecs);
+	vector<Float_t*> I_tot_tot(nb_elecs);
+	Float_t temps_saved[nb_elecs];
 
 	for(int i(0); i<n_t; ++i)
 	{
@@ -92,6 +105,8 @@ void tp4b(int V=500)
 	//double mu_e=1350/pow(10,-4);
 	//double mu_h=450/pow(10,-4);
 	vector<vector<double>> temps=tps(ini, n_d, E,T);
+	
+
 
 	fct_I(I_e, t, dt, temps[0]);
 	fct_I(I_h, t, dt, temps[1]);
@@ -202,7 +217,7 @@ void tp4b(int V=500)
 
 	///Noise added after filter
 	apply_filter_time_domain(I_tot, n_d);
-	add_noise(I_tot, 1.0);
+	add_noise(I_tot, standarddev);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
 	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 36);
@@ -227,7 +242,7 @@ void tp4b(int V=500)
 	gr_filter->Draw("L");
 
 ///Noise added before filter
-	add_noise(I_tot1, 1.0);
+	add_noise(I_tot1, standarddev);
 	apply_filter_time_domain(I_tot1, n_d);
 	TCanvas *canvfilter_ = new TCanvas("canvfilter_", "I, noise added before filtering", 200, 10, 1000, 650);
 	canvfilter_->SetGrid();
@@ -243,6 +258,7 @@ void tp4b(int V=500)
 	hpxfilter_->GetYaxis()->CenterTitle();
 	hpxfilter_->GetXaxis()->SetTitle("t [ns]");
 	hpxfilter_->GetXaxis()->CenterTitle();
+	
 
 	TGraph *gr_filter_ = new TGraph (n_t, t, I_tot1);
 	gr_filter_->SetMarkerStyle(20);
@@ -260,7 +276,6 @@ void tp4b(int V=500)
 	vector<Float_t*> vh(nt);
 	for(int i;i<nt;++i)
 	{
-		cout<<T_[i]<<endl;
 		ve[i]=vel_e(E_, T_[i]);
 		vh[i]=vel_h(E_, T_[i]);
 	}
@@ -369,11 +384,12 @@ canvas_T->Update();
 
 //plot histogram noise
 Float_t I_noise[n_t];
+
 for(int i(0); i<n_t; ++i)
 {
 	I_noise[i]=0;
 }
-	add_noise(I_noise, 1.0);
+	add_noise(I_noise, standarddev);
 	
 	TH1F *hist = new TH1F("hist", "I_noise Histogram", 100, -10, 10);
 
@@ -381,11 +397,44 @@ for(int i(0); i<n_t; ++i)
 		{
 			hist->Fill(I_noise[i]);
 		}
-	hist->GetXaxis()->SetLogx(0);
+	gPad->SetLogx(0);
+	gPad->SetLogy(0);
 hist->Draw();
+
+for(int j(0); j<nb_elecs; ++j)
+	{	
+		temps_saved[j]=0;
+		I_elecs[j]=fct_I_nv(t, dt, temps[0]);
+		I_holes[j]=fct_I_nv(t, dt, temps[1]);
+		I_tot_tot[j]=create_vect_float();
+		for(int k(0); k<n_t;++k)
+		{
+			//cout<<"hello k"<<k<<endl;
+			I_tot_tot[j][k]=I_elecs[j][k]+I_holes[j][k];
+		}
+		
+		apply_filter_time_domain(I_tot_tot[j], n_d);
+		add_noise(I_tot_tot[j], standarddev);
+		temps_saved[j]=get_t( I_tot_tot[j],  t,  threshold);
+	}
+
+	
+	TH1F *hist_temps = new TH1F("hist_temps", "time Histogram", 100, -2, 2);
+
+		for(int i(0); i<nb_elecs; ++i)
+		{
+			cout<<"temps_saved"<<temps_saved[i]<<endl;
+			hist_temps->Fill(temps_saved[i]);
+		}
+	gPad->SetLogx(0);
+	gPad->SetLogy(0);
+hist_temps->Draw();
 
 
 }
+
+
+
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir définir un champ élec constant facilement
 {
@@ -487,11 +536,11 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_) //i
 }
 void add_noise(Float_t I[n_t], double std)
 {
-	TRandom *rand = new TRandom();
+	
 	vector<double> r(n_t);
 		for(int k(0); k<n_t; ++k)
 		{
-			r[k] = rand->Gaus(0,std);
+			r[k] = rand_nb->Gaus(0,std);
 			I[k]+=r[k];
 		}
 }
@@ -530,11 +579,48 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 				}		
 }	
 
+Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps) 
+{
+	Float_t *I__ = new Float_t[n_t];
+	for(int i(0); i<n_t;++i)
+		{
+			I__[i]=0;
+			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
+		}
+		
+		
+		
+		
+		vector<int> num_dt(n_e);
+		vector<double> height_I(n_e);
+		
+				for(int i(0); i<n_e;++i)
+				{
+					//tps in seconds, dt in nanoseconds
+					num_dt[i]=floor(abs(tps[i]/(dt)));
+					
+					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
+			
+					for(int j(20); j<=num_dt[i]; ++j)
+					{
+						
+						int idx = j;
+						if (idx >= n_t) 
+						{
+							idx = n_t - 1;
+						}
+						I__[idx] += height_I[i];
+						
+					}
+					
+				}	
+				return I__;	
+}	
+
 void apply_filter_time_domain(float I[n_t], double n_d)
 {
 	double R=50;
 	double C=(double) area/(n_d*pow(10,-6))*8.854e-12; 
-	cout<<C<<endl;
 	double alpha=dt / (R*C + dt);
 	
 	for(int i(1); i<n_t; ++i)
@@ -544,4 +630,34 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 		// nos da una frecuencia de corte de 300 MHz, esto cambia con la C del detector.
 		//I[i]=I[i]*filter[i];
 	}
+}
+
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold)
+{
+	//Float_t tol=1;
+	for(int i(0); i<n_t; ++i)
+	{
+		/*if(abs(I[i]-threshold)<=tol)
+		{
+			return t[i];
+			break;
+		}*/
+		if(abs(I[i])>=threshold)
+		{
+			cout<<"I"<<I[i]<<endl;
+			return t[i]*pow(10,-9);
+			break;
+		}
+	}
+	return 0.0;
+	
+}
+Float_t* create_vect_float()
+{
+	Float_t *I_tot_tot = new Float_t[n_t];
+	for(int i(0); i<n_t;++i)
+		{
+			I_tot_tot[i]=0;
+		}
+	return I_tot_tot;
 }
