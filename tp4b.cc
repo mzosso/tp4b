@@ -166,7 +166,7 @@ void tp4b(int V=500)
 	
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e9*s, 100, -1, 70);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 70);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
@@ -223,7 +223,7 @@ void tp4b(int V=500)
 	add_noise(I_tot, standarddev);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e9*s, 100, -1, 36);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 36);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I ");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
@@ -262,7 +262,6 @@ void tp4b(int V=500)
 	hpxfilter_->GetXaxis()->SetTitle("t [ns]");
 	hpxfilter_->GetXaxis()->CenterTitle();
 	
-
 	TGraph *gr_filter_ = new TGraph (n_t, t, I_tot1);
 	gr_filter_->SetMarkerStyle(20);
 	gr_filter_ ->SetMarkerColor(2);
@@ -271,7 +270,6 @@ void tp4b(int V=500)
 	gr_filter_ ->SetLineColor(2);
 	
 	gr_filter_->Draw("L");
-
 	*/
 	Float_t* ve_=vel_e(E_, 100);
 	Float_t* vh_=vel_h(E_, 100);
@@ -331,7 +329,6 @@ void tp4b(int V=500)
         E_new[i] = pow(10, start + i * step);
 		
     }
-
 	vector<double> T_={6.0,45.0,110.0,200.0,300.0,430.0};
 	size_t nt=T_.size();
 	vector<TVectorF> ve(nt);
@@ -357,9 +354,7 @@ void tp4b(int V=500)
 	hpx_T->GetXaxis()->CenterTitle();
 	gPad->SetLogx();
 	gPad->SetLogy();
-
 	//vector<TGraph*> graph_T(T_.size());
-
 	auto legend2 = new TLegend(); //0.2,0.3,0.2,0.3
 	vector<TString> mylgd2 ={"T=6K","T=45K", "T=110K", "T=200K", "T=300K", "T=430K"};
 	vector<int> colors = {kRed, kBlue, kGreen, kMagenta, kCyan, kOrange};
@@ -374,11 +369,9 @@ for(int i = 0; i < T_.size(); ++i)
     graph_T->GetYaxis()->SetTitle("v [cm/s]");
     graph_T->SetLineWidth(2);
     graph_T->SetLineColor(colors[i]);
-
     legend2->AddEntry(graph_T, mylgd2[i], "l");
     graphs.push_back(graph_T);
 }
-
 TCanvas *canvas_T = new TCanvas("canvas", "canvas", 800, 600);
 canvas_T->SetGrid();
 canvas_T->cd();
@@ -387,7 +380,6 @@ for(int i = 1; i < 2; ++i)
 {
     graphs[i]->Draw("LSAME");
 }
-
 legend2->Draw();
 canvas_T->Update();
 }*/
@@ -588,7 +580,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 {
 	for(int i(0); i<n_t;++i)
 		{
-			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
+			t[i] = (double) s/n_t*i;//ns*1e9=s
 		}
 		
 		
@@ -625,7 +617,7 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 	for(int i(0); i<n_t;++i)
 		{
 			I__[i]=0;
-			t[i] = (double) 1e9*s/n_t*i;//ns*1e9=s
+			t[i] = (double) s/n_t*i;//ns*1e9=s
 		}
 		
 		
@@ -697,7 +689,7 @@ Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold)
 			float a=(I1-I2)/(t1-t2);
 			float b=(I2*t1-t2*I1)/(t1-t2);
 			Float_t t_fin=(threshold-b)/a;
-			return t_fin*pow(10,-9);
+			return t_fin;
 			break;
 		}
 	}
