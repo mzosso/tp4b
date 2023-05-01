@@ -9,7 +9,7 @@ using namespace std;
 
 	
 const int n=1000; //how many pts for d and E
-double area=1e5; //m^2
+double area=1e6; //m^2
 double n_d=100; //thickness, micro
 double dx= (double) n_d/n;
 int s=100; //how many ns
@@ -22,9 +22,12 @@ double T=298.16; //K
 double mu_e=1350; //cm^2/(Vs)
 double mu_h=480; //cm^2/(Vs)
 double k_B=8.62e-5; //eV/K
-int nb_elecs=100;
-double threshold=30;
-double standarddev=10.0;
+int nb_elecs=1000;
+double threshold=3.0;
+double standarddev=0.70;
+
+TVectorF vel_e_new( float E_[n], double T_);
+TVectorF vel_h_new(TVectorF E_new, double T_);
 
 static Float_t vel_h_at_position_in_field(float value_of_field, double temp);
 
@@ -163,7 +166,7 @@ void tp4b(int V=500)
 	
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e8*s, 100, -1, 70);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 1e9*s, 100, -1, 70);
 	hpx1->Draw();
 	hpx1->GetYaxis()->SetTitle("I");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
@@ -220,7 +223,7 @@ void tp4b(int V=500)
 	add_noise(I_tot, standarddev);
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e8*s, 100, -1, 36);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 1e9*s, 100, -1, 36);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I ");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
@@ -242,7 +245,7 @@ void tp4b(int V=500)
 	gr_filter->Draw("L");
 
 ///Noise added before filter
-	add_noise(I_tot1, standarddev);
+	/*add_noise(I_tot1, standarddev);
 	apply_filter_time_domain(I_tot1, n_d);
 	TCanvas *canvfilter_ = new TCanvas("canvfilter_", "I, noise added before filtering", 200, 10, 1000, 650);
 	canvfilter_->SetGrid();
@@ -269,18 +272,10 @@ void tp4b(int V=500)
 	
 	gr_filter_->Draw("L");
 
-	
-	vector<double> T_={6.0,45.0,110.0,200.0,300.0,430.0};
-	size_t nt=T_.size();
-	vector<Float_t*> ve(nt);
-	vector<Float_t*> vh(nt);
-	for(int i;i<nt;++i)
-	{
-		ve[i]=vel_e(E_, T_[i]);
-		vh[i]=vel_h(E_, T_[i]);
-	}
+	*/
 	Float_t* ve_=vel_e(E_, 100);
 	Float_t* vh_=vel_h(E_, 100);
+	
 	
 	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
     TH2F *hpx2 = new TH2F("hpx2", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
@@ -331,6 +326,21 @@ void tp4b(int V=500)
 
 
 	/*// plot different temperatures 
+	TVEctorF E_new(N);
+	for (int i = 0; i < N; i++) {
+        E_new[i] = pow(10, start + i * step);
+		
+    }
+
+	vector<double> T_={6.0,45.0,110.0,200.0,300.0,430.0};
+	size_t nt=T_.size();
+	vector<TVectorF> ve(nt);
+	vector<Float_t*> vh(nt);
+	for(int i;i<nt;++i)
+	{
+		ve[i]=vel_e_new(E_new, T_[i]);
+		vh[i]=vel_h_new(E_new, T_[i]);
+	}
 	
     TH2F *hpx_T = new TH2F("hpx_T", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
 	
@@ -391,10 +401,13 @@ for(int i(0); i<n_t; ++i)
 }
 	add_noise(I_noise, standarddev);
 	
+	TCanvas *canvas_hist = new TCanvas("canvas_hist", "hist", 200, 10, 1000, 650);
+	canvas_hist->SetGrid();
 	TH1F *hist = new TH1F("hist", "I_noise Histogram", 100, -10, 10);
 
 		for(int i(0); i<n_t; ++i)
 		{
+			cout<<"salut"<<endl;
 			hist->Fill(I_noise[i]);
 		}
 	gPad->SetLogx(0);
@@ -418,8 +431,9 @@ for(int j(0); j<nb_elecs; ++j)
 		temps_saved[j]=get_t( I_tot_tot[j],  t,  threshold);
 	}
 
-	
-	TH1F *hist_temps = new TH1F("hist_temps", "time Histogram", 100, -2, 2);
+	TCanvas *canvas_hist_temps = new TCanvas("canvas_hist_temps", "hist", 200, 10, 1000, 650);
+	canvas_hist_temps->SetGrid();
+	TH1F *hist_temps = new TH1F("hist_temps", "time Histogram", 100, 0, 5);
 
 		for(int i(0); i<nb_elecs; ++i)
 		{
@@ -476,11 +490,37 @@ Float_t* vel_e( float E_[n], double T_)
     }
 	return v_e; //cm/s
 }
+TVectorF vel_e_new( TVectorF E_new, double T_)
+{
+	TVectorF v_e(n);
+	for(int i(0); i<n; ++i)
+	{	double num=1.42e9*E_new[i]*pow(T_,-2.42);
+		double den = pow(1.0+pow(E_new[i]/1.01/pow(T_,1.55),(2.57e-2*pow(T_,0.66))),(1/(2.57e-2*pow(T_,0.66))));
+		v_e[i]=num/den;//without diffusion
+		//v_e[i]+=diffusion_velocity(mu_e, i, E_); //with diffusion
+
+    }
+	return v_e; //cm/s
+}
+TVectorF vel_h_new(TVectorF E_new, double T_)
+{
+	
+	double pot_h=0.46*pow(T_, 0.17);
+	TVectorF v_h(n);
+	for(int i(0); i<n; ++i)
+	{
+		double num_=1.31e8*E_new[i]*pow(T_,-2.2);
+		double den_ = pow(1.0+pow(E_new[i]/1.24/pow(T_,1.68),pot_h),(1/pot_h));
+		v_h[i]=num_/den_;
+	}
+	
+	return v_h;
+}
+
 
 Float_t* vel_h(float E_[n], double T_)
 {
 	
-	double pot_h=0.46*pow(T_, 0.17);
 	static Float_t v_h[n];
 
 	transform(E_, E_+n, v_h, [T_](float E){return vel_h_at_position_in_field(E,T_);});
@@ -622,6 +662,7 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 	double R=50;
 	double C=(double) area/(n_d*pow(10,-6))*8.854e-12; 
 	double alpha=dt / (R*C + dt);
+	cout<<"alpha     "<<alpha<<endl;
 	
 	for(int i(1); i<n_t; ++i)
 	{
@@ -635,6 +676,10 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold)
 {
 	//Float_t tol=1;
+	float t2;
+	float t1;
+	float I1;
+	float I2;
 	for(int i(0); i<n_t; ++i)
 	{
 		/*if(abs(I[i]-threshold)<=tol)
@@ -642,14 +687,21 @@ Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold)
 			return t[i];
 			break;
 		}*/
-		if(abs(I[i])>=threshold)
+		if((I[i]>=threshold) and (i>=1))
 		{
-			cout<<"I"<<I[i]<<endl;
-			return t[i]*pow(10,-9);
+			//return t[i]*pow(10,-9);
+			t2=t[i];
+			I2=I[i];
+			I1=I[i-1];
+			t1=t[i-1];
+			float a=(I1-I2)/(t1-t2);
+			float b=(I2*t1-t2*I1)/(t1-t2);
+			Float_t t_fin=(threshold-b)/a;
+			return t_fin*pow(10,-9);
 			break;
 		}
 	}
-	return 0.0;
+	return 1000000.0;
 	
 }
 Float_t* create_vect_float()
