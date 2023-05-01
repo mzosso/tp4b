@@ -26,6 +26,8 @@ int nb_elecs=1000;
 double threshold=3.0;
 double standarddev=0.70;
 
+void read_config_file();
+
 TVectorF vel_e_new( float E_[n], double T_);
 TVectorF vel_h_new(TVectorF E_new, double T_);
 
@@ -55,6 +57,7 @@ void apply_filter_time_domain(float I[n_t], double n_d);
 
 void tp4b(int V=500)
 {
+	read_config_file();
 	const int N = 1000;
     float E_[N];
 	for(int l = 0; l < N; l++)
@@ -441,7 +444,62 @@ hist_temps->Draw();
 
 
 
+void read_config_file() {
+	ifstream config("config1.txt");
+   
+    // variables to store the numerical values
+    double area, n_d, T, mu_e, mu_h, k_B, threshold, standarddev;
+    int s, V_d, n_e, nb_elecs;
 
+    // read the lines from the file
+    string line;
+    while (getline(config, line)) {
+        // parse the line
+        stringstream ss(line);
+        string valueString;
+        ss >> valueString;
+
+        // ignore comments (lines starting with '//')
+        if (valueString.find("//") == 0) {
+            continue;
+        }
+
+        // extract the numerical value
+        double value = stod(valueString);
+
+        // assign the value to the appropriate variable based on the comment
+        if (line.find("area=") != std::string::npos) {
+            area = value;
+        } else if (line.find("n_d=") != string::npos) {
+            n_d = value;
+        } else if (line.find("T=") != string::npos) {
+            T = value;
+        } else if (line.find("mu_e=") != string::npos) {
+            mu_e = value;
+        } else if (line.find("mu_h=") != std::string::npos) {
+            mu_h = value;
+        } else if (line.find("k_B=") != std::string::npos) {
+            k_B = value;
+        } else if (line.find("threshold=") != std::string::npos) {
+            threshold = value;
+        } else if (line.find("standarddev=") != std::string::npos) {
+            standarddev = value;
+        } else if (line.find("s=") != std::string::npos) {
+            s = static_cast<int>(value);
+        } else if (line.find("V_d=") != std::string::npos) {
+            V_d = static_cast<int>(value);
+        } else if (line.find("n_e=") != std::string::npos) {
+            n_e = static_cast<int>(value);
+        } else if (line.find("nb_elecs=") != std::string::npos) {
+            nb_elecs = static_cast<int>(value);
+        }
+    }
+
+   
+
+    // close the configuration file
+    config.close();
+}
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0) //pour pouvoir définir un champ élec constant facilement
 {
 		
