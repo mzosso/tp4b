@@ -438,13 +438,13 @@ for(int j(0); j<nb_elecs; ++j)
 		}
 	gPad->SetLogx(0);
 	gPad->SetLogy(0);
-hist_temps->Draw();
-hist_temps->Fit("gaus");
-TF1 *g = (TF1*)hist_temps->GetListOfFunctions()->FindObject("gaus");
-:: sigma_t = g->GetParameter(2);
-cout<<"sigma     "<<sigma_t;
+	hist_temps->Draw();
+	hist_temps->Fit("gaus", "Q");
+	TF1 *g = (TF1*)hist_temps->GetListOfFunctions()->FindObject("gaus");
+	:: sigma_t = g->GetParameter(2);
+	cout<<"sigma= "<<sigma_t<<endl;
 
-
+	canvas_hist_temps->SaveAs("myNiceCanvas.pdf");
 
 }
 /*void write_output(double sigma_t)
@@ -497,10 +497,7 @@ void read_config_file() {
         stringstream ss(line);
         string valueString;
         ss >> valueString;
-		cout<<"valueString"<<count<<"     "<<valueString<<endl;
-
-		count+=1;
-
+		//cout<<"valueString"<<count<<"     "<<valueString<<endl;
         // ignore comments (lines starting with '//')
         if (valueString.find("//") == 0) {
             continue;
@@ -510,40 +507,66 @@ void read_config_file() {
         double value = stod(valueString);
 
         // assign the value to the appropriate variable based on the comment
-        if (line.find("area=") != std::string::npos) {
+        if (line.find("area=") != std::string::npos) 
+		{
             area = value;
 			//cout<<"value area   "<<area<<endl;
-        } else if (line.find("n_d=") != string::npos) {
+        } 
+		else if (count==1) 
+		{
             n_d = value;
-			//cout<<"n_d   "<<value<<endl;
-        } else if (line.find("T=") != string::npos) {
+        } 
+		else if (count==6) 
+		{
             T = value;
 			//cout<<"value T   "<<value<<endl;
-        } else if (line.find("mu_e=") != string::npos) {
+        } 
+		else if (line.find("mu_e=") != string::npos) 
+		{
             mu_e = value;
-        } else if (line.find("mu_h=") != std::string::npos) {
+        } 
+		else if (line.find("mu_h=") != std::string::npos) 
+		{
             mu_h = value;
-        } else if (line.find("k_B=") != std::string::npos) {
+        } 
+		else if (line.find("k_B=") != std::string::npos) 
+		{
             k_B = value;
-        } else if (line.find("threshold=") != std::string::npos) {
+        } 
+		else if (line.find("threshold=") != std::string::npos) 
+		{
             threshold = value;
-        } else if (line.find("standarddev=") != std::string::npos) {
+        } 
+		else if (line.find("standarddev=") != std::string::npos) 
+		{
             standarddev = value;
-        } else if (line.find("s=") != std::string::npos) {
+        } 
+		else if (line.find("s=") != std::string::npos) 
+		{
             s = static_cast<int>(value);
-		} else if (line.find("V=") != std::string::npos) {
+		} 
+		else if (count==3) 
+		{
             V = static_cast<int>(value);
-        } else if (line.find("V_d=") != std::string::npos) {
+        } 
+		else if (line.find("V_d=") != std::string::npos) 
+		{
             V_d = static_cast<int>(value);
-        } else if (line.find("n_e=") != std::string::npos) {
+        } 
+		else if (line.find("n_e=") != std::string::npos) 
+		{
             n_e = static_cast<int>(value);
-        } else if (line.find("nb_elecs=") != std::string::npos) {
+        } 
+		else if (line.find("nb_elecs=") != std::string::npos) 
+		{
             nb_elecs = static_cast<int>(value);
         }
+		count+=1;
     }
 
-   
-
+	cout<<"T= "<<T<<endl;
+   	cout<<"V= "<<V<<endl;
+	cout<<"n_d= "<<n_d<<endl;
     // close the configuration file
     config.close();
 }
@@ -779,9 +802,9 @@ Float_t get_t(Float_t I[n_t], Float_t t[n_t])
 	float t1;
 	float I1;
 	float I2;
-	cout<<"max I   "<<get_max(I)<<endl;
+	//cout<<"max I   "<<get_max(I)<<endl;
 	double threshold=(double) 20/100*get_max(I);
-	cout<<"threshold"<<threshold<<endl;
+	//cout<<"threshold"<<threshold<<endl;
 	for(int i(0); i<n_t; ++i)
 	{
 		/*if(abs(I[i]-threshold)<=tol)
