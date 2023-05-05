@@ -29,7 +29,7 @@ double standarddev=0.70;
 double sigma_t;
 
 void read_config_file();
-
+double get_max(Float_t I[n_t]);
 TVectorF vel_e_new( float E_[n], double T_);
 TVectorF vel_h_new(TVectorF E_new, double T_);
 
@@ -50,7 +50,7 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_); //
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
 Float_t get_gradient(Float_t E[n], int i);
-Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold);
+Float_t get_t(Float_t I[n_t], Float_t t[n_t]);
 void add_noise(Float_t I[n_t], double std);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
@@ -424,7 +424,7 @@ for(int j(0); j<nb_elecs; ++j)
 		
 		apply_filter_time_domain(I_tot_tot[j], n_d);
 		add_noise(I_tot_tot[j], standarddev);
-		temps_saved[j]=get_t( I_tot_tot[j],  t,  threshold);
+		temps_saved[j]=get_t( I_tot_tot[j],  t);
 	}
 
 	TCanvas *canvas_hist_temps = new TCanvas("canvas_hist_temps", "hist", 200, 10, 1000, 650);
@@ -772,13 +772,16 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 	}
 }
 
-Float_t get_t(Float_t I[n_t], Float_t t[n_t], double threshold)
+Float_t get_t(Float_t I[n_t], Float_t t[n_t])
 {
 	//Float_t tol=1;
 	float t2;
 	float t1;
 	float I1;
 	float I2;
+	cout<<"max I   "<<get_max(I)<<endl;
+	double threshold=(double) 20/100*get_max(I);
+	cout<<"threshold"<<threshold<<endl;
 	for(int i(0); i<n_t; ++i)
 	{
 		/*if(abs(I[i]-threshold)<=tol)
@@ -811,4 +814,17 @@ Float_t* create_vect_float()
 			I_tot_tot[i]=0;
 		}
 	return I_tot_tot;
+}
+
+double get_max(Float_t I[n_t])
+{
+	double max=0;
+	for(int i(0); i<n_t; ++i)
+	{
+		if(I[i]>max)
+		{
+			max=I[i];
+		}
+	}
+	return max;
 }
