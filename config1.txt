@@ -1,0 +1,13 @@
+1000000 //m^2 double area=
+300 // double n_d=thickness, micro
+100 //how many ns int s=
+600 //voltage V=
+300 //depletion voltage int V_d=
+100 //nb electrons  int n_e=
+300 //K  double T=
+1350 //cm^2/(Vs) double mu_e=
+480 //cm^2/(Vs) double mu_h=
+8.62e-5 //eV/K   double k_B=
+1000 //int nb_elecs=
+3.0 //double threshold=
+0.70 //double standarddev=
