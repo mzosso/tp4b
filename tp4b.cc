@@ -9,13 +9,14 @@ using namespace std;
 
 	
 const int n=1000; //how many pts for d and E
-double area=1e6; //m^2
+double area; //m^2
 double n_d=100; //thickness, micro
 double dx= (double) n_d/n;
 int s=100; //how many ns
 TRandom *rand_nb = new TRandom();
 constexpr int n_t=2000; //how many pts for s and I
 double dt= (double) s/n_t; //ns
+int V=500;
 int V_d=300; //depletion voltage
 int n_e=100; //nb electrons
 double T=298.16; //K
@@ -25,6 +26,7 @@ double k_B=8.62e-5; //eV/K
 int nb_elecs=1000;
 double threshold=3.0;
 double standarddev=0.70;
+double sigma_t;
 
 void read_config_file();
 
@@ -55,7 +57,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 void apply_filter_time_domain(float I[n_t], double n_d);
 
 
-void tp4b(int V=500)
+void tp4b()
 {
 	read_config_file();
 	const int N = 1000;
@@ -402,7 +404,6 @@ for(int i(0); i<n_t; ++i)
 
 		for(int i(0); i<n_t; ++i)
 		{
-			cout<<"salut"<<endl;
 			hist->Fill(I_noise[i]);
 		}
 	gPad->SetLogx(0);
@@ -428,36 +429,77 @@ for(int j(0); j<nb_elecs; ++j)
 
 	TCanvas *canvas_hist_temps = new TCanvas("canvas_hist_temps", "hist", 200, 10, 1000, 650);
 	canvas_hist_temps->SetGrid();
-	TH1F *hist_temps = new TH1F("hist_temps", "time Histogram", 100, 0, 5);
+	TH1F *hist_temps = new TH1F("hist_temps", "time Histogram", 100, 0, 2*temps_saved[0]);
 
 		for(int i(0); i<nb_elecs; ++i)
 		{
-			cout<<"temps_saved"<<temps_saved[i]<<endl;
+			//cout<<"temps saved    "<<temps_saved[i]<<endl;
 			hist_temps->Fill(temps_saved[i]);
 		}
 	gPad->SetLogx(0);
 	gPad->SetLogy(0);
 hist_temps->Draw();
+hist_temps->Fit("gaus");
+TF1 *g = (TF1*)hist_temps->GetListOfFunctions()->FindObject("gaus");
+:: sigma_t = g->GetParameter(2);
+cout<<"sigma     "<<sigma_t;
+
 
 
 }
+/*void write_output(double sigma_t)
+{
+	ofstream outfile;
+	ofstream outfile1;
+	ofstream outfile2;
 
+// Open file for writing
+outfile.open("output_n_" + to_string(n_d) + ".txt");
+
+// Write time resolution to file
+outfile << "Time resolution: " << sigma_t << endl;
+
+// Close file
+outfile.close();
+outfile1.open("output_n_" + "_T_" + to_string(T)+ ".txt" )
+// Write time resolution to file
+outfile1 << "Time resolution: " << sigma_t << endl;
+outfile1.close();
+
+outfile2.open("output_n_" +"_V_" + to_string(V)+ ".txt");
+outfile2<<"Time resolution: " << sigma_t << endl;
+}*/
 
 
 void read_config_file() {
 	ifstream config("config1.txt");
    
     // variables to store the numerical values
-    double area, n_d, T, mu_e, mu_h, k_B, threshold, standarddev;
-    int s, V_d, n_e, nb_elecs;
+    ::area = area;
+    ::n_d = n_d;
+    ::T = T;
+    ::mu_e = mu_e;
+    ::mu_h = mu_h;
+    ::k_B = k_B;
+    ::threshold = threshold;
+    ::standarddev = standarddev;
+    ::s = s;
+    ::V = V;
+    ::V_d = V_d;
+    ::n_e = n_e;
+    ::nb_elecs = nb_elecs;
 
     // read the lines from the file
     string line;
+	int count=0;
     while (getline(config, line)) {
         // parse the line
         stringstream ss(line);
         string valueString;
         ss >> valueString;
+		cout<<"valueString"<<count<<"     "<<valueString<<endl;
+
+		count+=1;
 
         // ignore comments (lines starting with '//')
         if (valueString.find("//") == 0) {
@@ -470,10 +512,13 @@ void read_config_file() {
         // assign the value to the appropriate variable based on the comment
         if (line.find("area=") != std::string::npos) {
             area = value;
+			//cout<<"value area   "<<area<<endl;
         } else if (line.find("n_d=") != string::npos) {
             n_d = value;
+			//cout<<"n_d   "<<value<<endl;
         } else if (line.find("T=") != string::npos) {
             T = value;
+			//cout<<"value T   "<<value<<endl;
         } else if (line.find("mu_e=") != string::npos) {
             mu_e = value;
         } else if (line.find("mu_h=") != std::string::npos) {
@@ -486,6 +531,8 @@ void read_config_file() {
             standarddev = value;
         } else if (line.find("s=") != std::string::npos) {
             s = static_cast<int>(value);
+		} else if (line.find("V=") != std::string::npos) {
+            V = static_cast<int>(value);
         } else if (line.find("V_d=") != std::string::npos) {
             V_d = static_cast<int>(value);
         } else if (line.find("n_e=") != std::string::npos) {
@@ -710,9 +757,11 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 void apply_filter_time_domain(float I[n_t], double n_d)
 {
 	double R=50;
+	//cout<<"area in fct apply_filter  "<<area<<endl;
 	double C=(double) area/(n_d*pow(10,-6))*8.854e-12; 
 	double alpha=dt / (R*C + dt);
-	cout<<"alpha     "<<alpha<<endl;
+	//cout<<"alpha    "<<alpha<<endl;
+	//cout<<"C     "<<C<<endl;
 	
 	for(int i(1); i<n_t; ++i)
 	{
