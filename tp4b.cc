@@ -276,8 +276,8 @@ void tp4b()
 	
 	gr_filter_->Draw("L");
 	*/
-	Float_t* ve_=vel_e(E_, 100);
-	Float_t* vh_=vel_h(E_, 100);
+	Float_t* ve_=vel_e(E_, T);
+	Float_t* vh_=vel_h(E_, T);
 	
 	
 	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
@@ -443,8 +443,8 @@ for(int j(0); j<nb_elecs; ++j)
 	TF1 *g = (TF1*)hist_temps->GetListOfFunctions()->FindObject("gaus");
 	:: sigma_t = g->GetParameter(2);
 	cout<<"sigma= "<<sigma_t<<endl;
-
-	canvas_hist_temps->SaveAs("myNiceCanvas.pdf");
+	string title="time_histogram_area=" +to_string(area) + "_V=" +to_string(V) + "T=" + to_string(T) + ".pdf";
+	canvas_hist_temps->SaveAs(title.c_str());
 
 }
 /*void write_output(double sigma_t)
@@ -507,7 +507,7 @@ void read_config_file() {
         double value = stod(valueString);
 
         // assign the value to the appropriate variable based on the comment
-        if (line.find("area=") != std::string::npos) 
+        if (count==0) 
 		{
             area = value;
 			//cout<<"value area   "<<area<<endl;
@@ -567,6 +567,7 @@ void read_config_file() {
 	cout<<"T= "<<T<<endl;
    	cout<<"V= "<<V<<endl;
 	cout<<"n_d= "<<n_d<<endl;
+	cout<<"area= "<<area<<endl;
     // close the configuration file
     config.close();
 }
@@ -803,7 +804,7 @@ Float_t get_t(Float_t I[n_t], Float_t t[n_t])
 	float I1;
 	float I2;
 	//cout<<"max I   "<<get_max(I)<<endl;
-	double threshold=(double) 20/100*get_max(I);
+	double threshold=(double) 50/100*get_max(I);
 	//cout<<"threshold"<<threshold<<endl;
 	for(int i(0); i<n_t; ++i)
 	{
