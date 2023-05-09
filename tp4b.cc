@@ -27,6 +27,7 @@ int nb_elecs=1000;
 double threshold=3.0;
 double standarddev=0.70;
 double sigma_t;
+bool CFD=1;
 
 void read_config_file();
 double get_max(Float_t I[n_t]);
@@ -50,7 +51,7 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_); //
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
 Float_t get_gradient(Float_t E[n], int i);
-Float_t get_t(Float_t I[n_t], Float_t t[n_t]);
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD);
 void add_noise(Float_t I[n_t], double std);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
@@ -226,9 +227,13 @@ void tp4b()
 	///Noise added after filter
 	apply_filter_time_domain(I_tot, n_d);
 	add_noise(I_tot, standarddev);
+	
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
 	canvfilter->SetGrid();
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 36);
+
+	
+
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 100);
 	hpxfilter->Draw();
 	hpxfilter->GetYaxis()->SetTitle("I ");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
@@ -240,12 +245,38 @@ void tp4b()
 	hpxfilter->GetYaxis()->CenterTitle();
 	hpxfilter->GetXaxis()->SetTitle("t [ns]");
 	hpxfilter->GetXaxis()->CenterTitle();
+
+// Get the range of the canvas
+	double xmin = hpxfilter->GetXaxis()->GetXmin();
+	double xmax = hpxfilter->GetXaxis()->GetXmax();
+	double ymin = hpxfilter->GetYaxis()->GetXmin();
+	double ymax = hpxfilter->GetYaxis()->GetXmax();
+
+	// Check that threshold falls within the visible range of the y-axis
+	if (threshold < ymin || threshold > ymax) 
+	{
+		cout << "Threshold value is outside the visible range of the canvas" << endl;
+		return;
+	}
+
+	TLine *line_thresh = new TLine(xmin, threshold, xmax, threshold);
+	line_thresh->SetLineColor(kYellow);
+	line_thresh->SetLineWidth(2);
+	line_thresh->Draw();
+	
+
+	canvfilter->Update();
+
 	TGraph *gr_filter = new TGraph (n_t, t, I_tot);
 	gr_filter->SetMarkerStyle(20);
 	gr_filter ->SetMarkerColor(2);
 	gr_filter ->SetMarkerSize(1.0);
 	gr_filter ->SetLineWidth(2);
 	gr_filter ->SetLineColor(2);
+	auto legend_thresh = new TLegend(); //0.2,0.3,0.2,0.3
+	TString lgd_thresh ="threshold= " + to_string(round(threshold));
+	legend_thresh->AddEntry(line_thresh,lgd_thresh, "l");
+	legend_thresh->Draw();
 	
 	gr_filter->Draw("L");
 
@@ -290,7 +321,7 @@ void tp4b()
 	hpx2->GetYaxis()->SetTitleSize(0.05);
 	hpx2->GetXaxis()->SetTitleSize(0.05);
 	hpx2->GetXaxis()->SetNoExponent();
-	hpx2->SetTitle("Drift velocity, v vs E");
+	hpx2->SetTitle("Drift velocity, v vs. E");
 	hpx2->GetYaxis()->CenterTitle();
 	hpx2->GetXaxis()->SetTitle("E [V/cm]");
 	hpx2->GetXaxis()->CenterTitle();
@@ -424,7 +455,7 @@ for(int j(0); j<nb_elecs; ++j)
 		
 		apply_filter_time_domain(I_tot_tot[j], n_d);
 		add_noise(I_tot_tot[j], standarddev);
-		temps_saved[j]=get_t( I_tot_tot[j],  t);
+		temps_saved[j]=get_t( I_tot_tot[j],  t, CFD);
 	}
 
 	TCanvas *canvas_hist_temps = new TCanvas("canvas_hist_temps", "hist", 200, 10, 1000, 650);
@@ -488,6 +519,7 @@ void read_config_file() {
     ::V_d = V_d;
     ::n_e = n_e;
     ::nb_elecs = nb_elecs;
+	::CFD = CFD;
 
     // read the lines from the file
     string line;
@@ -555,11 +587,15 @@ void read_config_file() {
         } 
 		else if (line.find("n_e=") != std::string::npos) 
 		{
-            n_e = static_cast<int>(value);
+            n_e = static_cast<int>(74*n_d);
         } 
 		else if (line.find("nb_elecs=") != std::string::npos) 
 		{
             nb_elecs = static_cast<int>(value);
+        }
+		else if (count==13) 
+		{
+            CFD = value;
         }
 		count+=1;
     }
@@ -723,7 +759,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					
-					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -760,7 +796,7 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					
-					height_I[i]=(double) 1.0/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -796,16 +832,26 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 	}
 }
 
-Float_t get_t(Float_t I[n_t], Float_t t[n_t])
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD)
 {
+	if(CFD==1)
+	{
+		double threshold=(double) 50/100*get_max(I);
+		//cout<<"threshold CFD= "<<threshold;
+	}
+	/*else
+	{
+		cout<<"threshold pas CFD"<<threshold<<endl;
+	}*/
+
 	//Float_t tol=1;
 	float t2;
 	float t1;
 	float I1;
 	float I2;
 	//cout<<"max I   "<<get_max(I)<<endl;
-	double threshold=(double) 50/100*get_max(I);
-	//cout<<"threshold"<<threshold<<endl;
+	
+	
 	for(int i(0); i<n_t; ++i)
 	{
 		/*if(abs(I[i]-threshold)<=tol)
