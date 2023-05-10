@@ -587,7 +587,7 @@ void read_config_file() {
         } 
 		else if (line.find("n_e=") != std::string::npos) 
 		{
-            n_e = static_cast<int>(74*n_d);
+            n_e = static_cast<int>(73*n_d);
         } 
 		else if (line.find("nb_elecs=") != std::string::npos) 
 		{
