@@ -25,7 +25,7 @@ double mu_h=480; //cm^2/(Vs)
 double k_B=8.62e-5; //eV/K
 int nb_elecs=1000;
 double threshold=3.0;
-double standarddev=0.70;
+double standarddev=0.80;
 double sigma_t;
 bool CFD=1;
 
@@ -51,8 +51,9 @@ vector<vector<double>> tps(float ini[n_e], double n_d,float E[n], double T_); //
 
 void fct_E(float E[n], float d[n],int V_d, int V, bool cst=0); //pour pouvoir définir un champ élec constant facilement
 Float_t get_gradient(Float_t E[n], int i);
-Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD);
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD, int j);
 void add_noise(Float_t I[n_t], double std);
+double get_threshold(Float_t I[n_t], bool CFD);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
 void apply_filter_time_domain(float I[n_t], double n_d);
@@ -145,7 +146,7 @@ void tp4b()
 	
 	hpx0->Draw();
 	
-	hpx0->GetYaxis()->SetTitle("E [V/micro m]");
+	hpx0->GetYaxis()->SetTitle("E [#frac{V}{#mu m}]");
 	
 	
 	hpx0->GetYaxis()->SetLabelSize(0.05);
@@ -155,7 +156,7 @@ void tp4b()
 	hpx0->GetXaxis()->SetNoExponent();
 	hpx0->SetTitle("Electric field, E vs thickness");
 	hpx0->GetYaxis()->CenterTitle();
-	hpx0->GetXaxis()->SetTitle("d [micro m]");
+	hpx0->GetXaxis()->SetTitle("d [#mu m]");
 	hpx0->GetXaxis()->CenterTitle();
 	
 	TGraph *gr_E = new TGraph (n, d, E);
@@ -172,15 +173,15 @@ void tp4b()
 	
 	TCanvas *canv1 = new TCanvas("canv1", "I", 200, 10, 1000, 650);
 	canv1->SetGrid();
-	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, s, 100, -1, 70);
+	TH2F *hpx1 = new TH2F("hpx1", "I", 20, 0, 100, 100, -1, get_max(I_tot));
 	hpx1->Draw();
-	hpx1->GetYaxis()->SetTitle("I");
+	hpx1->GetYaxis()->SetTitle("I [mV]");
 	hpx1->GetYaxis()->SetLabelSize(0.05);
 	hpx1->GetXaxis()->SetLabelSize(0.05);
 	hpx1->GetYaxis()->SetTitleSize(0.05);
 	hpx1->GetXaxis()->SetTitleSize(0.05);
 	hpx1->GetXaxis()->SetNoExponent();
-	hpx1->SetTitle("I, Current vs time");
+	hpx1->SetTitle("I, Current vs. time");
 	hpx1->GetYaxis()->CenterTitle();
 	hpx1->GetXaxis()->SetTitle("t [ns]");
 	hpx1->GetXaxis()->CenterTitle();
@@ -233,9 +234,9 @@ void tp4b()
 
 	
 
-	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, s, 100, -1, 100);
+	TH2F *hpxfilter = new TH2F("hpxfilter", "I", 20, 0, 100, 100, -1, get_max(I_tot));
 	hpxfilter->Draw();
-	hpxfilter->GetYaxis()->SetTitle("I ");
+	hpxfilter->GetYaxis()->SetTitle("I [mV]");
 	hpxfilter->GetYaxis()->SetLabelSize(0.05);
 	hpxfilter->GetXaxis()->SetLabelSize(0.05);
 	hpxfilter->GetYaxis()->SetTitleSize(0.05);
@@ -259,7 +260,7 @@ void tp4b()
 		return;
 	}
 
-	TLine *line_thresh = new TLine(xmin, threshold, xmax, threshold);
+	TLine *line_thresh = new TLine(xmin, get_threshold(I_tot, CFD), xmax, get_threshold(I_tot, CFD));
 	line_thresh->SetLineColor(kYellow);
 	line_thresh->SetLineWidth(2);
 	line_thresh->Draw();
@@ -274,7 +275,7 @@ void tp4b()
 	gr_filter ->SetLineWidth(2);
 	gr_filter ->SetLineColor(2);
 	auto legend_thresh = new TLegend(); //0.2,0.3,0.2,0.3
-	TString lgd_thresh ="threshold= " + to_string(round(threshold));
+	TString lgd_thresh = Form("Threshold= %.2f", get_threshold(I_tot, CFD));
 	legend_thresh->AddEntry(line_thresh,lgd_thresh, "l");
 	legend_thresh->Draw();
 	
@@ -311,7 +312,7 @@ void tp4b()
 	Float_t* vh_=vel_h(E_, T);
 	
 	
-	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs E", 200, 10, 1000, 650);
+	TCanvas *canvas2 = new TCanvas("canvas2", "Drift velocity vs. E", 200, 10, 1000, 650);
     TH2F *hpx2 = new TH2F("hpx2", "Electric", 100,1e2 ,1e5, n,1e4 , 1e7); //nb binsx, xlow, xup, nbinsy, ydown, yup 
 	canvas2->SetGrid();
 	hpx2->Draw();
@@ -433,9 +434,9 @@ for(int i(0); i<n_t; ++i)
 	canvas_hist->SetGrid();
 	TH1F *hist = new TH1F("hist", "I_noise Histogram", 100, -10, 10);
 
-		for(int i(0); i<n_t; ++i)
+		for(int i(1600); i<n_t; ++i)
 		{
-			hist->Fill(I_noise[i]);
+			hist->Fill(I_tot[i]);
 		}
 	gPad->SetLogx(0);
 	gPad->SetLogy(0);
@@ -455,7 +456,7 @@ for(int j(0); j<nb_elecs; ++j)
 		
 		apply_filter_time_domain(I_tot_tot[j], n_d);
 		add_noise(I_tot_tot[j], standarddev);
-		temps_saved[j]=get_t( I_tot_tot[j],  t, CFD);
+		temps_saved[j]=get_t( I_tot_tot[j],  t, CFD, j);
 	}
 
 	TCanvas *canvas_hist_temps = new TCanvas("canvas_hist_temps", "hist", 200, 10, 1000, 650);
@@ -573,9 +574,10 @@ void read_config_file() {
 		{
             standarddev = value;
         } 
-		else if (line.find("s=") != std::string::npos) 
+		else if (line.find("how many ns int s=") != std::string::npos) 
 		{
             s = static_cast<int>(value);
+			cout<<"s="<<s<<endl;
 		} 
 		else if (count==3) 
 		{
@@ -758,8 +760,9 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 				{
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
+					//cout<<tps[i]<<"  "<<num_dt[i]<<endl;
 					
-					height_I[i]=(double) 1e-2/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1/8*1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -796,7 +799,7 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					
-					height_I[i]=(double) 1e-2/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1/8*1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -818,9 +821,11 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 {
 	double R=50;
 	//cout<<"area in fct apply_filter  "<<area<<endl;
-	double C=(double) area/(n_d*pow(10,-6))*8.854e-12; 
-	double alpha=dt / (R*C + dt);
-	//cout<<"alpha    "<<alpha<<endl;
+	double C=(double) area/(n_d*pow(10,-6))*8.854e-12*12; 
+	double alpha=(double) dt / (R*C*1e3 + dt);
+	cout<<"dt= "<<dt<<endl;
+	cout<<"R*C*1e3"<<R*C*1e3<<endl;
+	cout<<"alpha    "<<alpha<<endl;
 	//cout<<"C     "<<C<<endl;
 	
 	for(int i(1); i<n_t; ++i)
@@ -832,12 +837,25 @@ void apply_filter_time_domain(float I[n_t], double n_d)
 	}
 }
 
-Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD)
+double get_threshold(Float_t I[n_t], bool CFD)
 {
 	if(CFD==1)
 	{
-		double threshold=(double) 50/100*get_max(I);
-		//cout<<"threshold CFD= "<<threshold;
+		//cout<<"max I="<<get_max(I)<<endl;
+	 	::threshold=(double) 30/100*get_max(I);
+		//cout<<"threshold CFD= "<<threshold<<endl;
+	}
+	return threshold;
+
+}
+
+Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD, int j)
+{
+	if((CFD==1) and (j==0))
+	{
+		cout<<"max I="<<get_max(I)<<endl;
+	 	::threshold=(double) 30/100*get_max(I);
+		cout<<"threshold CFD= "<<threshold<<endl;
 	}
 	/*else
 	{
