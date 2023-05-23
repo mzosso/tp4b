@@ -8,7 +8,10 @@
 1350 //cm^2/(Vs) double mu_e=
 480 //cm^2/(Vs) double mu_h=
 0.0000862 //eV/K   double k_B=
-1000 //int nb_elecs=
-3.0 //double threshold=
-3.5 //double standarddev=
+100 //int nb_elecs=
+8
+3.2
 1
+0.00000000001
+0
+0.8

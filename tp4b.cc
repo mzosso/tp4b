@@ -23,11 +23,14 @@ double T=298.16; //K
 double mu_e=1350; //cm^2/(Vs)
 double mu_h=480; //cm^2/(Vs)
 double k_B=8.62e-5; //eV/K
-int nb_elecs=1000;
+int nb_elecs=10;
 double threshold=3.0;
 double standarddev=0.80;
 double sigma_t;
 bool CFD=1;
+double Capacity;
+bool capacidad;
+double pourcentage=0.7;
 
 void read_config_file();
 double get_max(Float_t I[n_t]);
@@ -56,7 +59,7 @@ void add_noise(Float_t I[n_t], double std);
 double get_threshold(Float_t I[n_t], bool CFD);
 void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps);
 
-void apply_filter_time_domain(float I[n_t], double n_d);
+void apply_filter_time_domain(float I[n_t], double n_d, bool capacidad=0);
 
 
 void tp4b()
@@ -226,7 +229,7 @@ void tp4b()
 	
 
 	///Noise added after filter
-	apply_filter_time_domain(I_tot, n_d);
+	apply_filter_time_domain(I_tot, n_d, capacidad);
 	add_noise(I_tot, standarddev);
 	
 	TCanvas *canvfilter = new TCanvas("canvfilter", "I, noise added after filtering", 200, 10, 1000, 650);
@@ -454,7 +457,7 @@ for(int j(0); j<nb_elecs; ++j)
 			I_tot_tot[j][k]=I_elecs[j][k]+I_holes[j][k];
 		}
 		
-		apply_filter_time_domain(I_tot_tot[j], n_d);
+		apply_filter_time_domain(I_tot_tot[j], n_d, capacidad);
 		add_noise(I_tot_tot[j], standarddev);
 		temps_saved[j]=get_t( I_tot_tot[j],  t, CFD, j);
 	}
@@ -475,9 +478,11 @@ for(int j(0); j<nb_elecs; ++j)
 	TF1 *g = (TF1*)hist_temps->GetListOfFunctions()->FindObject("gaus");
 	:: sigma_t = g->GetParameter(2);
 	cout<<"sigma= "<<sigma_t<<endl;
-	string title="time_histogram_area=" +to_string(area) + "_V=" +to_string(V) + "T=" + to_string(T) + ".pdf";
+	//TString title=Form("time_histogram_area=%.8f_V=%.2f_T=%.2f_C=%.2f_noise=%.2f_threshold=%.2f.pdf", area, V, T, Capacity, standarddev, threshold);
+	string title="" +to_string(area) + "_V=" +to_string(V) + "T=" + to_string(T) + "C=" + to_string(Capacity)+"noise=" + to_string(standarddev)+"threshold=" + to_string(threshold)+".pdf";
+	//canvas_hist_temps->SaveAs(title);
 	canvas_hist_temps->SaveAs(title.c_str());
-
+delete rand_nb;
 }
 /*void write_output(double sigma_t)
 {
@@ -521,6 +526,9 @@ void read_config_file() {
     ::n_e = n_e;
     ::nb_elecs = nb_elecs;
 	::CFD = CFD;
+	::capacidad=capacidad;
+	::Capacity=Capacity;
+	::pourcentage=pourcentage;
 
     // read the lines from the file
     string line;
@@ -554,6 +562,11 @@ void read_config_file() {
             T = value;
 			//cout<<"value T   "<<value<<endl;
         } 
+		else if (count==11) 
+		{
+            threshold = value;
+			//cout<<"value T   "<<value<<endl;
+        } 
 		else if (line.find("mu_e=") != string::npos) 
 		{
             mu_e = value;
@@ -566,18 +579,18 @@ void read_config_file() {
 		{
             k_B = value;
         } 
-		else if (line.find("threshold=") != std::string::npos) 
+		/*else if (line.find("threshold=") != std::string::npos) 
 		{
             threshold = value;
-        } 
-		else if (line.find("standarddev=") != std::string::npos) 
+        } */
+		else if (count==12) 
 		{
             standarddev = value;
+			//cout<<"std"<<standarddev<<endl;
         } 
 		else if (line.find("how many ns int s=") != std::string::npos) 
 		{
             s = static_cast<int>(value);
-			cout<<"s="<<s<<endl;
 		} 
 		else if (count==3) 
 		{
@@ -599,6 +612,18 @@ void read_config_file() {
 		{
             CFD = value;
         }
+		else if(count==15)
+		{
+			capacidad=value;
+		}
+		else if (count==14) 
+		{
+            Capacity = value;
+        }
+		else if(count==16)
+		{
+			pourcentage=value;
+		}
 		count+=1;
     }
 
@@ -606,6 +631,17 @@ void read_config_file() {
    	cout<<"V= "<<V<<endl;
 	cout<<"n_d= "<<n_d<<endl;
 	cout<<"area= "<<area<<endl;
+	cout<<"Noise= "<<standarddev<<endl;
+	cout<<"threshold="<<threshold<<endl;
+	if (capacidad==1)
+	{
+		cout<<"Capacity="<<Capacity<<endl;
+	}
+	else
+	{
+		cout<<"Capacity="<<dt*1e-9 / (50*Capacity + dt*1e-9)<<endl;
+	}
+	
     // close the configuration file
     config.close();
 }
@@ -749,10 +785,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 		{
 			t[i] = (double) s/n_t*i;//ns*1e9=s
 		}
-		
-		
-		
-		
+
 		vector<int> num_dt(n_e);
 		vector<double> height_I(n_e);
 		
@@ -762,7 +795,7 @@ void fct_I(float I[n_t], float t[n_t],double dt,vector<double> tps)
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					//cout<<tps[i]<<"  "<<num_dt[i]<<endl;
 					
-					height_I[i]=(double) 1/8*1e-2/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1/6*1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -799,7 +832,7 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 					//tps in seconds, dt in nanoseconds
 					num_dt[i]=floor(abs(tps[i]/(dt)));
 					
-					height_I[i]=(double) 1/8*1e-2/tps[i]; // aire du rectangle =1
+					height_I[i]=(double) 1/6*1e-2/tps[i]; // aire du rectangle =1
 			
 					for(int j(20); j<=num_dt[i]; ++j)
 					{
@@ -817,15 +850,27 @@ Float_t* fct_I_nv(float t[n_t],double dt,vector<double> tps)
 				return I__;	
 }	
 
-void apply_filter_time_domain(float I[n_t], double n_d)
+void apply_filter_time_domain(float I[n_t], double n_d, bool capacidad)
 {
+	
+	if(capacidad==1)
+	{
+		::Capacity=Capacity;
+		cout<<"capacity in if="<< Capacity<<endl;
+	}
+	else
+	{
+		::Capacity=(double) area/(n_d*pow(10,-6))*8.854e-12*12; 
+		cout<<"capacity in else="<< Capacity<<endl;
+	}
 	double R=50;
 	//cout<<"area in fct apply_filter  "<<area<<endl;
-	double C=(double) area/(n_d*pow(10,-6))*8.854e-12*12; 
-	double alpha=(double) dt / (R*C*1e3 + dt);
-	cout<<"dt= "<<dt<<endl;
-	cout<<"R*C*1e3"<<R*C*1e3<<endl;
-	cout<<"alpha    "<<alpha<<endl;
+
+	
+	double alpha=(double) dt*1e-9 / (R*Capacity + dt*1e-9);
+	//cout<<"dt= "<<dt<<endl;
+	//cout<<"R*C*1e3"<<R*C*1e3<<endl;
+	//cout<<"alpha    "<<alpha<<endl;
 	//cout<<"C     "<<C<<endl;
 	
 	for(int i(1); i<n_t; ++i)
@@ -841,8 +886,9 @@ double get_threshold(Float_t I[n_t], bool CFD)
 {
 	if(CFD==1)
 	{
-		//cout<<"max I="<<get_max(I)<<endl;
-	 	::threshold=(double) 30/100*get_max(I);
+		cout<<"pourcentage"<<pourcentage<<endl;
+		cout<<"max I="<<get_max(I)<<endl;
+	 	::threshold=(double) pourcentage*get_max(I);
 		//cout<<"threshold CFD= "<<threshold<<endl;
 	}
 	return threshold;
@@ -853,8 +899,8 @@ Float_t get_t(Float_t I[n_t], Float_t t[n_t], bool CFD, int j)
 {
 	if((CFD==1) and (j==0))
 	{
-		cout<<"max I="<<get_max(I)<<endl;
-	 	::threshold=(double) 30/100*get_max(I);
+		//cout<<"max I="<<get_max(I)<<endl;
+	 	::threshold=(double) pourcentage*get_max(I);
 		cout<<"threshold CFD= "<<threshold<<endl;
 	}
 	/*else
